@@ -28,7 +28,7 @@ La qualification définitive des bases juridiques doit être confirmée par un c
 
 ## Destinataires et sous-traitants
 
-Les données peuvent être traitées par l’hébergement backend et stockage média choisis par l’éditeur, le fournisseur IA configuré côté serveur, et, uniquement si activés/configurés, Firebase/Google Analytics, Crashlytics, Google Mobile Ads/UMP et Meta App Events. Aucun SDK non intégré ne doit être déclaré dans la version finale.
+Les données peuvent être traitées par l’hébergement backend et le stockage média choisis par l’éditeur, ainsi que par le fournisseur IA configuré côté serveur. Dans la version actuelle, Google Mobile Ads/UMP est la seule intégration publicitaire mobile présente et reste désactivée par défaut. Firebase/Google Analytics, Crashlytics, FCM et Meta App Events ne sont pas intégrés dans cette version et ne sont donc pas des destinataires actuels.
 
 Les conversations, photos, vidéos, documents, transcriptions, factures, numéros de série et dossiers professionnels ne sont pas envoyés aux analytics ou à la publicité.
 
