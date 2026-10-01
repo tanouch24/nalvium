@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nalvium.com/sitemap.xml

@@ -1,0 +1,5 @@
+import Link from 'next/link';
+import { GuideCard, SiteCta } from '../components';
+import { categories, guides } from '../data';
+export const metadata = { title: 'Guides dépannage maison', description: 'Des guides clairs pour comprendre un problème domestique, essayer une vérification sûre et savoir quand s’arrêter.' };
+export default function Guides(){return <main><section className="page-hero"><span className="eyebrow">GUIDES NALVIUM</span><h1>Comprendre le problème avant de choisir la suite.</h1><p>Des réponses utiles pour les situations du quotidien, écrites avec une limite claire : la sécurité passe avant la réparation.</p></section><section className="content-grid"><div className="guide-index">{categories.map(c=><Link className="category-link" key={c.slug} href={`/guides/${c.slug}`}><strong>{c.label}</strong><p>{c.description}</p></Link>)}</div><h2 className="section-heading" style={{marginTop:80}}>Problèmes populaires</h2><div className="related-grid" style={{marginTop:28}}>{guides.slice(0,6).map(g=><GuideCard key={g.slug} guide={g}/>)}</div></section><SiteCta /></main>}

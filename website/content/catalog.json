@@ -1,0 +1,15 @@
+{
+  "problems": [
+    {"slug":"fuite-sous-evier","category":"plomberie","title":"Fuite sous évier","indexable":true},
+    {"slug":"chasse-eau-qui-coule","category":"plomberie","title":"Chasse d'eau qui coule","indexable":true},
+    {"slug":"lave-linge-ne-vidange-plus","category":"electromenager","title":"Lave-linge qui ne vidange plus","indexable":true}
+  ],
+  "trades": [
+    {"slug":"plombier","label":"Plombier"},
+    {"slug":"reparateur-electromenager","label":"Réparateur électroménager"}
+  ],
+  "cities": [
+    {"slug":"lyon","label":"Lyon","covered":false},
+    {"slug":"paris","label":"Paris","covered":false}
+  ]
+}

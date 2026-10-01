@@ -1,0 +1,2 @@
+export const metadata = { title: 'Mentions légales' };
+export default function MentionsLegales() { return <main className="section legal-page"><div className="section-narrow"><p className="eyebrow">NALVIUM</p><h1>Mentions légales</h1><p>Éditeur : <strong>[À COMPLÉTER AVANT PUBLICATION]</strong></p><p>Adresse, société, registre, directeur de publication, hébergeur et URLs légales : <strong>[À COMPLÉTER ET VALIDER]</strong></p><p>Contact présent dans la documentation projet : contact@nalvium.com — à confirmer avant mise en ligne.</p></div></main>; }

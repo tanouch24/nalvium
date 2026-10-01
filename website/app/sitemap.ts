@@ -1,0 +1,3 @@
+import { MetadataRoute } from 'next';
+import { guides, categories, cities } from './data';
+export default function sitemap(): MetadataRoute.Sitemap { const base='https://nalvium.com'; const routes=['','/comment-ca-marche','/ma-maison','/securite','/professionnels','/guides',...categories.map(c=>`/guides/${c.slug}`),...guides.map(g=>`/guides/${g.slug}`),...Object.keys(cities).map(c=>`/plombier/${c}`),'/plombier/nice/fuite-eau','/plombier/nice/evier-bouche','/plombier/nice/chasse-eau'];return routes.map(url=>({url:base+url,lastModified:new Date('2026-01-01'),changeFrequency:'monthly',priority:url===''?1:.7})) }

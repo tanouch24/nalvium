@@ -1,0 +1,1 @@
+{"name":"nalvium-dashboard","private":true,"scripts":{"start":"python3 -m http.server 4174 -d public","test":"node tests/dashboard.test.js"}}
