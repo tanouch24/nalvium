@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'community_identity.dart';
+
 class ApiException implements Exception {
   final String message;
   final Object? cause;
@@ -48,11 +50,12 @@ class ApiClient {
     String? assistantThreadId,
     String? actorKey,
   }) async {
+    final actor = await CommunityIdentity.id();
     final response = await _request(
       () => http
           .post(
             Uri.parse('$baseUrl/v1/sessions'),
-            headers: {'content-type': 'application/json'},
+            headers: {'content-type': 'application/json', 'X-Client-Id': actor},
             body: jsonEncode({
               'equipment_id': equipmentId,
               'assistant_thread_id': assistantThreadId,
@@ -668,6 +671,88 @@ class ApiClient {
           .timeout(const Duration(seconds: 20)),
     );
     await _json(response);
+  }
+
+  Future<Map<String, dynamic>> serviceCatalog() async {
+    final response = await _request(
+      () => http.get(Uri.parse('$baseUrl/v1/service-categories')).timeout(const Duration(seconds: 12)),
+    );
+    return _json(response);
+  }
+
+  Future<Map<String, dynamic>> supportConfig() async {
+    final response = await _request(
+      () => http.get(Uri.parse('$baseUrl/v1/support/config')).timeout(const Duration(seconds: 10)),
+    );
+    return _json(response);
+  }
+
+  Future<Map<String, dynamic>> commerceSearch({
+    required String mode,
+    required String itemType,
+    required String genericName,
+    String? purchaseSearchQuery,
+    String? postalCode,
+    String? city,
+    bool safetyStop = false,
+  }) async {
+    final response = await _request(
+      () => http.post(
+        Uri.parse('$baseUrl/v1/commerce/search'),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({
+          'mode': mode,
+          'item_type': itemType,
+          'generic_name': genericName,
+          'purchase_search_query': purchaseSearchQuery,
+          'postal_code': postalCode,
+          'city': city,
+          'safety_stop': safetyStop,
+        }),
+      ).timeout(const Duration(seconds: 12)),
+    );
+    return _json(response);
+  }
+
+  Future<Map<String, dynamic>> serviceAvailability(String postalCode) async {
+    final response = await _request(
+      () => http.get(Uri.parse('$baseUrl/v1/service-availability?postal_code=${Uri.encodeQueryComponent(postalCode)}')).timeout(const Duration(seconds: 12)),
+    );
+    return _json(response);
+  }
+
+  Future<Map<String, dynamic>> createRepairRequest(Map<String, dynamic> payload) async {
+    final actor = await CommunityIdentity.id();
+    final key = 'repair-${DateTime.now().microsecondsSinceEpoch}';
+    final response = await _request(
+      () => http.post(Uri.parse('$baseUrl/v1/repair-requests'), headers: {'content-type': 'application/json', 'X-Client-Id': actor, 'Idempotency-Key': key}, body: jsonEncode(payload)).timeout(const Duration(seconds: 20)),
+    );
+    return _json(response);
+  }
+
+  Future<List<Map<String, dynamic>>> repairRequests() async {
+    final actor = await CommunityIdentity.id();
+    final response = await _request(
+      () => http.get(Uri.parse('$baseUrl/v1/repair-requests'), headers: {'X-Client-Id': actor}).timeout(const Duration(seconds: 12)),
+    );
+    final body = await _json(response);
+    return (body['requests'] as List? ?? []).whereType<Map>().map((item) => Map<String, dynamic>.from(item)).toList();
+  }
+
+  Future<Map<String, dynamic>> repairRequest(String id) async {
+    final actor = await CommunityIdentity.id();
+    final response = await _request(
+      () => http.get(Uri.parse('$baseUrl/v1/repair-requests/$id'), headers: {'X-Client-Id': actor}).timeout(const Duration(seconds: 12)),
+    );
+    return _json(response);
+  }
+
+  Future<Map<String, dynamic>> cancelRepairRequest(String id) async {
+    final actor = await CommunityIdentity.id();
+    final response = await _request(
+      () => http.post(Uri.parse('$baseUrl/v1/repair-requests/$id/cancel'), headers: {'X-Client-Id': actor}).timeout(const Duration(seconds: 12)),
+    );
+    return _json(response);
   }
 
   Future<Map<String, dynamic>> createRepair(Map<String, dynamic> repair) async {

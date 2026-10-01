@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'ads_service.dart';
 import 'theme/nalvium_theme.dart';
+import 'support_screens.dart';
 import 'widgets/nalvium_widgets.dart';
 
 class NalviumSettingsScreen extends StatefulWidget {
@@ -41,6 +42,12 @@ class _NalviumSettingsState extends State<NalviumSettingsScreen> {
           leading: const Icon(Icons.privacy_tip_outlined),
           title: const Text('Politique de confidentialité'),
           onTap: () => _document('Politique de confidentialité', _privacyText),
+        ),
+        ListTile(
+          leading: const Icon(Icons.favorite_border),
+          title: const Text('Soutenir Nalvium'),
+          subtitle: const Text('Contribution volontaire, sans avantage ni fonctionnalité payante.'),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SupportScreen())),
         ),
         ListTile(
           leading: const Icon(Icons.description_outlined),

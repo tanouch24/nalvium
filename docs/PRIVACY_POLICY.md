@@ -32,6 +32,8 @@ Les données peuvent être traitées par l’hébergement backend et le stockage
 
 Les conversations, photos, vidéos, documents, transcriptions, factures, numéros de série et dossiers professionnels ne sont pas envoyés aux analytics ou à la publicité.
 
+Lorsque l’utilisateur demande un dépannage, les données explicitement sélectionnées avant confirmation peuvent comprendre le prénom, le téléphone, le code postal, la description, le créneau et les médias choisis. Un consentement distinct est requis. Une zone non couverte peut faire l’objet d’un intérêt séparé, sans création de demande assignable.
+
 Les transferts internationaux éventuels, garanties contractuelles et sous-traitants exacts doivent être complétés avant publication.
 
 ## Conservation
@@ -49,3 +51,8 @@ NALVIUM utilise des systèmes automatisés pour analyser les informations fourni
 ## Mise à jour
 
 Cette version est un document de préparation et ne constitue pas encore la politique publique finale.
+Les recherches externes de matériel utilisent uniquement un libellé générique
+et, si l'utilisateur le fournit, un code postal ou une ville. Elles ne
+transmettent pas le diagnostic complet, les photos, les coordonnées ou les
+documents privés à un partenaire. Aucun achat n'est effectué dans cette
+version.

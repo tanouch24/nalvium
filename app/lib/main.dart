@@ -17,6 +17,9 @@ import 'equipment_screens.dart';
 import 'equipment_photo_store.dart';
 import 'history_store.dart';
 import 'legal_screens.dart';
+import 'materials_screens.dart';
+import 'repair_network_screens.dart';
+import 'support_screens.dart';
 import 'release_config.dart';
 import 'theme/nalvium_theme.dart';
 import 'widgets/nalvium_widgets.dart';
@@ -201,8 +204,8 @@ class _MainShellState extends State<MainShell> {
       const HomeScreen(),
       HouseScreen(history: history),
       const AssistantScreen(),
+      const RepairNetworkScreen(),
       const CommunityScreen(),
-      ActivityScreen(history: history),
     ];
     return Scaffold(
       body: IndexedStack(index: index, children: pages),
@@ -226,14 +229,14 @@ class _MainShellState extends State<MainShell> {
             label: 'Nalvium',
           ),
           NavigationDestination(
+            icon: Icon(Icons.handyman_outlined),
+            selectedIcon: Icon(Icons.handyman_rounded),
+            label: 'Dépannage',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.forum_outlined),
             selectedIcon: Icon(Icons.forum_rounded),
             label: 'Communauté',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.timeline_outlined),
-            selectedIcon: Icon(Icons.timeline_rounded),
-            label: 'Activité',
           ),
         ],
       ),
@@ -1877,22 +1880,6 @@ class _AnalysisContent extends StatelessWidget {
           action['instruction']?.toString() ?? 'Nous allons vérifier un point.',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
-        if ((action['required_items'] as List? ?? []).isNotEmpty) ...[
-          const SizedBox(height: 16),
-          const SectionLabel('Matériel éventuel'),
-          const SizedBox(height: 8),
-          Text(
-            (action['required_items'] as List)
-                .map(
-                  (item) => item is Map
-                      ? item['name']?.toString() ?? ''
-                      : item.toString(),
-                )
-                .where((item) => item.isNotEmpty)
-                .join('  •  '),
-            style: const TextStyle(color: NalviumColors.textSecondary),
-          ),
-        ],
         TextButton.icon(
           onPressed: () =>
               _readInstruction(action['instruction']?.toString() ?? ''),
@@ -1936,19 +1923,36 @@ class _AnalysisContent extends StatelessWidget {
           ),
         ] else if (type == 'instruction' || type == 'verify')
           FilledButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => VerificationScreen(
-                  sessionId: widget.sessionId,
-                  api: widget.api,
-                  history: widget.history,
-                  beforeFile: widget.localFile,
-                  beforeMediaId: widget.beforeMediaId,
-                  equipmentId: widget.equipmentId,
-                ),
-              ),
-            ),
+            onPressed: () {
+              final items = action['required_items'] as List? ?? const [];
+              void continueToVerification() => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VerificationScreen(
+                        sessionId: widget.sessionId,
+                        api: widget.api,
+                        history: widget.history,
+                        beforeFile: widget.localFile,
+                        beforeMediaId: widget.beforeMediaId,
+                        equipmentId: widget.equipmentId,
+                      ),
+                    ),
+                  );
+              if (items.isEmpty) {
+                continueToVerification();
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RequiredItemsScreen(
+                      items: items,
+                      api: widget.api,
+                      onContinue: continueToVerification,
+                    ),
+                  ),
+                );
+              }
+            },
             child: const Text('C’est fait'),
           ),
         const SizedBox(height: 10),
@@ -2504,6 +2508,10 @@ class RepairCompleteScreen extends StatelessWidget {
                   fontSize: 13,
                 ),
               ),
+              if (repairId != null) ...[
+                const SizedBox(height: 18),
+                SupportResolutionPrompt(repairKey: repairId!),
+              ],
               const SizedBox(height: 24),
               if (repairId != null)
                 SizedBox(

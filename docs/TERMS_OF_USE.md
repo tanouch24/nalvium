@@ -14,6 +14,10 @@ Les analyses automatisées peuvent être inexactes. NALVIUM ne garantit ni l’e
 
 L’utilisateur doit suivre tout safety stop, ne pas poursuivre une action refusée et contacter un service compétent lorsque NALVIUM le recommande. Les présentes conditions ne remplacent pas les protections techniques.
 
+Les tarifs affichés proviennent du catalogue configuré par l’éditeur et doivent être lus avec leurs conditions. Aucun paiement intégré n’est proposé dans cette version. Les demandes peuvent être annulées uniquement selon leur état opérationnel ; aucun frais d’annulation n’est inventé par l’application.
+
+Le rôle juridique de NALVIUM dans la mise en relation, la relation avec les professionnels, la facturation, l’assurance, la médiation et les obligations précontractuelles reste **[À VALIDER JURIDIQUEMENT AVANT LANCEMENT]**.
+
 ## 4. Contenus utilisateur
 
 L’utilisateur reste responsable des informations et contenus qu’il transmet. Une publication Communauté est volontaire, modifiable selon les fonctions disponibles, soumise aux règles de la Communauté et peut être restreinte ou supprimée après signalement/modération.

@@ -28,10 +28,21 @@ class Risk(BaseModel):
     flags: list[str]
     stop_diy: bool
 
+class RequiredItem(BaseModel):
+    type: str = Field(pattern="^(TOOL|PART|CONSUMABLE|SAFETY_EQUIPMENT)$")
+    name: str = Field(min_length=1, max_length=160)
+    generic_name: str | None = Field(default=None, max_length=160)
+    description: str | None = Field(default=None, max_length=300)
+    required: bool = True
+    quantity: str | None = Field(default=None, max_length=40)
+    compatibility_required: bool = False
+    identification_confidence: float | None = Field(default=None, ge=0, le=1)
+    purchase_search_query: str | None = Field(default=None, max_length=180)
+
 class NextAction(BaseModel):
     type: ActionType
     instruction: str = Field(min_length=1, max_length=500)
-    required_items: list[dict] = []
+    required_items: list[RequiredItem] = Field(default_factory=list)
     warning: str | None = None
     expected_result: str | None = None
     verification_method: str | None = None
@@ -229,6 +240,57 @@ class ProfessionalDossierRequest(BaseModel):
     postal_code: str = Field(default="", max_length=12)
     desired_time_window: str = Field(default="", max_length=120)
     consent: bool = False
+
+class RepairRequestCreate(BaseModel):
+    service_offering_id: str
+    session_id: str | None = None
+    equipment_id: str | None = None
+    first_name: str = Field(min_length=1, max_length=80)
+    phone: str = Field(min_length=8, max_length=30)
+    postal_code: str = Field(min_length=4, max_length=12)
+    city: str | None = Field(default=None, max_length=100)
+    description: str = Field(min_length=1, max_length=3000)
+    desired_time_window: str = Field(default="", max_length=120)
+    selected_media_ids: list[str] = Field(default_factory=list, max_length=12)
+    consent: bool = False
+    source: str = Field(default="unknown", max_length=30)
+    idempotency_key: str | None = Field(default=None, max_length=120)
+
+class RepairRequestStatusUpdate(BaseModel):
+    status: str = Field(min_length=3, max_length=40)
+    note: str | None = Field(default=None, max_length=500)
+
+class RepairAssignmentRequest(BaseModel):
+    professional_id: str
+
+class AppointmentRequest(BaseModel):
+    starts_at: str = Field(min_length=10, max_length=40)
+    ends_at: str | None = Field(default=None, max_length=40)
+    note: str | None = Field(default=None, max_length=500)
+
+class CoverageInterestRequest(BaseModel):
+    postal_code: str = Field(min_length=4, max_length=12)
+    contact: str | None = Field(default=None, max_length=160)
+    consent: bool = False
+
+class DeviceTokenRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=4096)
+    platform: str = Field(pattern="^(android|ios|web)$")
+
+class SupportContributionRequest(BaseModel):
+    amount_cents: int = Field(gt=0, le=100000)
+    currency: str = Field(default="EUR", min_length=3, max_length=3)
+    source: str = Field(pattern="^(RESOLUTION_SCREEN|SETTINGS)$")
+    repair_session_id: str | None = None
+
+class CommerceSearchRequest(BaseModel):
+    mode: str = Field(pattern="^(nearby|online)$")
+    item_type: str = Field(pattern="^(TOOL|PART|CONSUMABLE|SAFETY_EQUIPMENT)$")
+    generic_name: str = Field(min_length=1, max_length=160)
+    purchase_search_query: str | None = Field(default=None, max_length=180)
+    postal_code: str | None = Field(default=None, max_length=12)
+    city: str | None = Field(default=None, max_length=100)
+    safety_stop: bool = False
 
 class CommunityPostRequest(BaseModel):
     repair_record_id: str | None = None

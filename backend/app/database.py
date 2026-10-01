@@ -29,6 +29,168 @@ class MemoryStore:
         self.community_reactions: set[tuple[str, str]] = set()
         self.community_saved_posts: set[tuple[str, str]] = set()
         self.community_reports: dict[str, dict] = {}
+        self.service_categories: dict[str, dict] = {}
+        self.service_offerings: dict[str, dict] = {}
+        self.service_areas: dict[str, dict] = {}
+        self.repair_requests: dict[str, dict] = {}
+        self.repair_request_media: dict[str, list[str]] = {}
+        self.repair_request_events: dict[str, list[dict]] = {}
+        self.professional_assignments: dict[str, dict] = {}
+        self.appointments: dict[str, dict] = {}
+        self.coverage_interests: dict[str, dict] = {}
+        self.ai_usage_events: list[dict] = []
+        self.device_tokens: dict[str, dict] = {}
+        self.support_contributions: dict[str, dict] = {}
+        self.commerce_events: list[dict] = []
+
+    def record_commerce_event(self, data: dict) -> dict:
+        item = data | {"id": str(uuid4()), "created_at": datetime.now(timezone.utc).isoformat()}
+        self.commerce_events.append(item)
+        return item
+
+    def commerce_metrics(self) -> dict:
+        counts: dict[str, int] = {}
+        items: dict[str, int] = {}
+        for event in self.commerce_events:
+            counts[event["event_name"]] = counts.get(event["event_name"], 0) + 1
+            key = event.get("normalized_item", "")
+            if key:
+                items[key] = items.get(key, 0) + 1
+        return {"events": counts, "items": sorted(({"name": k, "count": v} for k, v in items.items()), key=lambda item: item["count"], reverse=True)}
+
+    def support_metrics(self) -> dict:
+        successes = [item for item in self.support_contributions.values() if item.get("status") == "SUCCESS"]
+        total = sum(item.get("amount_cents", 0) for item in successes)
+        return {"enabled": False, "count": len(successes), "total_cents": total, "average_cents": round(total / len(successes)) if successes else 0}
+
+    def list_service_categories(self, active_only: bool = True) -> list[dict]:
+        items = list(self.service_categories.values())
+        if active_only:
+            items = [item for item in items if item.get("active")]
+        return sorted(items, key=lambda item: (item.get("display_order", 0), item.get("title", "")))
+
+    def list_service_offerings(self, active_only: bool = True) -> list[dict]:
+        items = list(self.service_offerings.values())
+        if active_only:
+            items = [item for item in items if item.get("active")]
+        return sorted(items, key=lambda item: (item.get("display_order", 0), item.get("title", "")))
+
+    def create_service_category(self, data: dict) -> dict:
+        item = data | {"id": str(uuid4()), "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}
+        self.service_categories[item["id"]] = item
+        return item
+
+    def update_service_category(self, category_id: str, data: dict) -> dict | None:
+        item = self.service_categories.get(category_id)
+        if not item:
+            return None
+        item.update({key: value for key, value in data.items() if value is not None})
+        item["updated_at"] = datetime.now(timezone.utc).isoformat()
+        return item
+
+    def create_service_offering(self, data: dict) -> dict:
+        item = data | {"id": str(uuid4()), "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}
+        self.service_offerings[item["id"]] = item
+        return item
+
+    def update_service_offering(self, offering_id: str, data: dict) -> dict | None:
+        item = self.service_offerings.get(offering_id)
+        if not item:
+            return None
+        item.update({key: value for key, value in data.items() if value is not None})
+        item["updated_at"] = datetime.now(timezone.utc).isoformat()
+        return item
+
+    def create_service_area(self, data: dict) -> dict:
+        item = data | {"id": str(uuid4()), "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}
+        self.service_areas[item["id"]] = item
+        for offering_id in data.get("offering_ids", []):
+            if offering_id in self.service_offerings:
+                self.service_offerings[offering_id].setdefault("area_ids", []).append(item["id"])
+        return item
+
+    def list_service_areas(self) -> list[dict]:
+        return list(self.service_areas.values())
+
+    def service_availability(self, postal_code: str) -> dict:
+        normalized = postal_code.strip().replace(" ", "")
+        areas = [area for area in self.service_areas.values() if area.get("active") and normalized in area.get("postal_codes", [])]
+        area_ids = {area["id"] for area in areas}
+        offerings = [item for item in self.list_service_offerings() if item.get("area_id") in area_ids or item.get("area_ids", []) and area_ids.intersection(item["area_ids"])]
+        return {"covered": bool(offerings), "available_services": offerings, "coverage_message": "Le service de dépannage est disponible dans votre secteur." if offerings else "Nous n'avons pas encore de professionnel disponible dans votre secteur."}
+
+    def create_coverage_interest(self, data: dict) -> dict:
+        item = data | {"id": str(uuid4()), "created_at": datetime.now(timezone.utc).isoformat()}
+        self.coverage_interests[item["id"]] = item
+        return item
+
+    def create_repair_request(self, data: dict, actor_key: str, media_ids: list[str], idempotency_key: str) -> dict:
+        existing = next((item for item in self.repair_requests.values() if item.get("actor_key") == actor_key and item.get("idempotency_key") == idempotency_key), None)
+        if existing:
+            return self.get_repair_request(existing["id"], actor_key)
+        item = data | {"id": str(uuid4()), "actor_key": actor_key, "idempotency_key": idempotency_key, "status": "REQUESTED", "consent_at": datetime.now(timezone.utc).isoformat(), "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}
+        self.repair_requests[item["id"]] = item
+        self.repair_request_media[item["id"]] = list(media_ids)
+        self.repair_request_events[item["id"]] = [{"event_type": "request_created", "from_status": None, "to_status": "REQUESTED", "created_at": item["created_at"]}]
+        return self.get_repair_request(item["id"], actor_key)
+
+    def get_repair_request(self, request_id: str, actor_key: str | None = None) -> dict | None:
+        item = self.repair_requests.get(request_id)
+        if not item or actor_key is not None and item.get("actor_key") != actor_key:
+            return None
+        return item | {"media_ids": list(self.repair_request_media.get(request_id, [])), "events": list(self.repair_request_events.get(request_id, [])), "assignment": self.professional_assignments.get(request_id), "appointment": self.appointments.get(request_id)}
+
+    def list_repair_requests(self, actor_key: str | None = None) -> list[dict]:
+        items = [self.get_repair_request(item["id"], actor_key) for item in self.repair_requests.values() if actor_key is None or item.get("actor_key") == actor_key]
+        return sorted([item for item in items if item], key=lambda item: item.get("created_at", ""), reverse=True)
+
+    def update_repair_request_status(self, request_id: str, status: str, note: str | None = None) -> dict | None:
+        item = self.repair_requests.get(request_id)
+        if not item:
+            return None
+        previous = item["status"]
+        item.update({"status": status, "updated_at": datetime.now(timezone.utc).isoformat()})
+        self.repair_request_events.setdefault(request_id, []).append({"event_type": "status_changed", "from_status": previous, "to_status": status, "note": note, "created_at": item["updated_at"]})
+        return self.get_repair_request(request_id)
+
+    def assign_repair_request(self, request_id: str, professional_id: str) -> dict | None:
+        if request_id not in self.repair_requests or not any(item.get("id") == professional_id for item in self.list_professionals()):
+            return None
+        assignment = {"id": str(uuid4()), "request_id": request_id, "professional_id": professional_id, "status": "assigned", "assigned_at": datetime.now(timezone.utc).isoformat()}
+        self.professional_assignments[request_id] = assignment
+        return self.update_repair_request_status(request_id, "ASSIGNED")
+
+    def create_appointment(self, request_id: str, data: dict) -> dict | None:
+        if request_id not in self.repair_requests:
+            return None
+        appointment = data | {"id": str(uuid4()), "request_id": request_id, "created_at": datetime.now(timezone.utc).isoformat()}
+        self.appointments[request_id] = appointment
+        self.update_repair_request_status(request_id, "APPOINTMENT_PROPOSED")
+        return self.get_repair_request(request_id)
+
+    def record_ai_usage(self, data: dict) -> dict:
+        item = data | {"id": str(uuid4()), "created_at": datetime.now(timezone.utc).isoformat()}
+        self.ai_usage_events.append(item)
+        return item
+
+    def ai_usage_metrics(self) -> dict:
+        now = datetime.now(timezone.utc)
+        events = self.ai_usage_events
+        def within(days: int) -> list[dict]:
+            return [item for item in events if (now - datetime.fromisoformat(item["created_at"])).days < days]
+        return {"today": len(within(1)), "seven_days": len(within(7)), "thirty_days": len(within(30)), "by_operation": {operation: sum(1 for item in events if item.get("operation_type") == operation) for operation in sorted({item.get("operation_type") for item in events})}}
+
+    def register_device_token(self, actor_key: str, data: dict) -> dict:
+        item = data | {"actor_key": actor_key, "active": True, "updated_at": datetime.now(timezone.utc).isoformat()}
+        self.device_tokens[data["token"]] = item
+        return {"platform": item["platform"], "active": True}
+
+    def unregister_device_token(self, actor_key: str, token: str) -> bool:
+        item = self.device_tokens.get(token)
+        if not item or item.get("actor_key") != actor_key:
+            return False
+        item["active"] = False
+        return True
 
     def create_session(self, equipment_id: str | None = None, assistant_thread_id: str | None = None, actor_key: str | None = None) -> dict:
         session = {"id": str(uuid4()), "status": "active", "equipment_id": equipment_id, "assistant_thread_id": assistant_thread_id, "actor_key": actor_key, "messages": [], "media": [], "created_at": datetime.now(timezone.utc).isoformat()}
@@ -454,6 +616,202 @@ class PostgresStore(MemoryStore):
     def _connect(self):
         import psycopg
         return psycopg.connect(self.url)
+
+    def support_metrics(self) -> dict:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*), COALESCE(SUM(amount_cents), 0) FROM support_contributions WHERE status='SUCCESS'")
+            count, total = cur.fetchone()
+        return {"enabled": False, "count": count, "total_cents": total, "average_cents": round(total / count) if count else 0}
+
+    def record_commerce_event(self, data: dict) -> dict:
+        item_id = str(uuid4())
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO commerce_events (id, event_name, item_type, normalized_item, provider) VALUES (%s,%s,%s,%s,%s)", (item_id, data["event_name"], data["item_type"], data["normalized_item"][:160], data.get("provider")))
+        return data | {"id": item_id}
+
+    def commerce_metrics(self) -> dict:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT event_name, count(*) FROM commerce_events GROUP BY event_name")
+            events = {row[0]: row[1] for row in cur.fetchall()}
+            cur.execute("SELECT normalized_item, count(*) FROM commerce_events GROUP BY normalized_item ORDER BY count(*) DESC LIMIT 50")
+            items = [{"name": row[0], "count": row[1]} for row in cur.fetchall()]
+        return {"events": events, "items": items}
+
+    def list_service_categories(self, active_only: bool = True) -> list[dict]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT id::text, slug, title, description, active, display_order FROM service_categories WHERE (%s=false OR active=true) ORDER BY display_order, title", (active_only,))
+            return [{"id": r[0], "slug": r[1], "title": r[2], "description": r[3], "active": r[4], "display_order": r[5]} for r in cur.fetchall()]
+
+    def list_service_offerings(self, active_only: bool = True) -> list[dict]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("""SELECT o.id::text, o.category_id::text, c.slug, c.title, o.slug, o.title, o.short_description, o.long_description, o.active, o.pricing_type, o.price_cents, o.min_price_cents, o.max_price_cents, o.currency, o.callout_included, o.diagnosis_included, o.labor_description, o.parts_included, o.estimated_duration_minutes, o.emergency_available, o.evening_available, o.weekend_available, o.display_order
+                FROM service_offerings o JOIN service_categories c ON c.id=o.category_id WHERE (%s=false OR o.active=true) AND (%s=false OR c.active=true) ORDER BY o.display_order, o.title""", (active_only, active_only))
+            keys = ("id", "category_id", "category_slug", "category_title", "slug", "title", "short_description", "long_description", "active", "pricing_type", "price_cents", "min_price_cents", "max_price_cents", "currency", "callout_included", "diagnosis_included", "labor_description", "parts_included", "estimated_duration_minutes", "emergency_available", "evening_available", "weekend_available", "display_order")
+            return [dict(zip(keys, row)) for row in cur.fetchall()]
+
+    def create_service_category(self, data: dict) -> dict:
+        item_id = str(uuid4())
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO service_categories (id, slug, title, description, active, display_order) VALUES (%s,%s,%s,%s,%s,%s)", (item_id, data["slug"], data["title"], data.get("description"), data.get("active", False), data.get("display_order", 0)))
+        return data | {"id": item_id}
+
+    def update_service_category(self, category_id: str, data: dict) -> dict | None:
+        allowed = {key: value for key, value in data.items() if value is not None and key in {"slug", "title", "description", "active", "display_order"}}
+        if not allowed:
+            return next((item for item in self.list_service_categories(False) if item["id"] == category_id), None)
+        fields = ", ".join(f"{key}=%s" for key in allowed) + ", updated_at=now()"
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(f"UPDATE service_categories SET {fields} WHERE id=%s", (*allowed.values(), category_id))
+            if cur.rowcount != 1:
+                return None
+        return next((item for item in self.list_service_categories(False) if item["id"] == category_id), None)
+
+    def create_service_offering(self, data: dict) -> dict:
+        item_id = str(uuid4())
+        fields = ("category_id", "slug", "title", "short_description", "long_description", "active", "pricing_type", "price_cents", "min_price_cents", "max_price_cents", "currency", "callout_included", "diagnosis_included", "labor_description", "parts_included", "estimated_duration_minutes", "emergency_available", "evening_available", "weekend_available", "display_order")
+        values = [data.get(key, False if key == "active" else 0 if key == "display_order" else None) for key in fields]
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(f"INSERT INTO service_offerings (id,{','.join(fields)}) VALUES (%s,{','.join(['%s'] * len(fields))})", [item_id, *values])
+        return data | {"id": item_id}
+
+    def update_service_offering(self, offering_id: str, data: dict) -> dict | None:
+        allowed_keys = {"category_id", "slug", "title", "short_description", "long_description", "active", "pricing_type", "price_cents", "min_price_cents", "max_price_cents", "currency", "callout_included", "diagnosis_included", "labor_description", "parts_included", "estimated_duration_minutes", "emergency_available", "evening_available", "weekend_available", "display_order"}
+        allowed = {key: value for key, value in data.items() if key in allowed_keys and value is not None}
+        if not allowed:
+            return next((item for item in self.list_service_offerings(False) if item["id"] == offering_id), None)
+        fields = ", ".join(f"{key}=%s" for key in allowed) + ", updated_at=now()"
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute(f"UPDATE service_offerings SET {fields} WHERE id=%s", (*allowed.values(), offering_id))
+            if cur.rowcount != 1:
+                return None
+        return next((item for item in self.list_service_offerings(False) if item["id"] == offering_id), None)
+
+    def create_service_area(self, data: dict) -> dict:
+        area_id = str(uuid4())
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO service_areas (id, name, postal_codes, department_code, active) VALUES (%s,%s,%s,%s,%s)", (area_id, data["name"], data.get("postal_codes", []), data.get("department_code"), data.get("active", False)))
+            for offering_id in data.get("offering_ids", []):
+                cur.execute("INSERT INTO service_area_offerings (area_id, offering_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (area_id, offering_id))
+        return data | {"id": area_id}
+
+    def list_service_areas(self) -> list[dict]:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT id::text, name, postal_codes, department_code, active FROM service_areas ORDER BY name")
+            return [{"id": r[0], "name": r[1], "postal_codes": r[2], "department_code": r[3], "active": r[4]} for r in cur.fetchall()]
+
+    def service_availability(self, postal_code: str) -> dict:
+        normalized = postal_code.strip().replace(" ", "")
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("""SELECT o.id::text, o.category_id::text, c.slug AS category_slug, c.title AS category_title, o.slug, o.title, o.short_description, o.pricing_type, o.price_cents, o.min_price_cents, o.max_price_cents, o.currency, o.callout_included, o.diagnosis_included, o.labor_description, o.parts_included, o.estimated_duration_minutes, o.emergency_available, o.evening_available, o.weekend_available, o.display_order
+                FROM service_offerings o JOIN service_categories c ON c.id=o.category_id JOIN service_area_offerings sao ON sao.offering_id=o.id JOIN service_areas a ON a.id=sao.area_id
+                WHERE o.active=true AND c.active=true AND a.active=true AND %s = ANY(a.postal_codes) ORDER BY o.display_order, o.title""", (normalized,))
+            keys = ("id", "category_id", "category_slug", "category_title", "slug", "title", "short_description", "pricing_type", "price_cents", "min_price_cents", "max_price_cents", "currency", "callout_included", "diagnosis_included", "labor_description", "parts_included", "estimated_duration_minutes", "emergency_available", "evening_available", "weekend_available", "display_order")
+            offerings = [dict(zip(keys, row)) for row in cur.fetchall()]
+        return {"covered": bool(offerings), "available_services": offerings, "coverage_message": "Le service de dépannage est disponible dans votre secteur." if offerings else "Nous n'avons pas encore de professionnel disponible dans votre secteur."}
+
+    def create_coverage_interest(self, data: dict) -> dict:
+        item_id = str(uuid4())
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO coverage_interests (id, actor_key, postal_code, contact, consent_at) VALUES (%s,%s,%s,%s,now())", (item_id, data.get("actor_key"), data["postal_code"], data.get("contact")))
+        return data | {"id": item_id}
+
+    def create_repair_request(self, data: dict, actor_key: str, media_ids: list[str], idempotency_key: str) -> dict:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT id::text FROM repair_requests WHERE actor_key=%s AND idempotency_key=%s", (actor_key, idempotency_key))
+            existing = cur.fetchone()
+            if existing:
+                return self.get_repair_request(existing[0], actor_key)
+            request_id = str(uuid4())
+            cur.execute("""INSERT INTO repair_requests (id, idempotency_key, actor_key, session_id, equipment_id, service_offering_id, first_name, phone, postal_code, city, description, desired_time_window, source, consent_at)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,now())""", (request_id, idempotency_key, actor_key, data.get("session_id"), data.get("equipment_id"), data["service_offering_id"], data["first_name"], data["phone"], data["postal_code"], data.get("city"), data["description"], data.get("desired_time_window", ""), data.get("source", "unknown")))
+            for media_id in media_ids:
+                cur.execute("INSERT INTO repair_request_media (request_id, media_id) VALUES (%s,%s)", (request_id, media_id))
+            cur.execute("INSERT INTO repair_request_events (request_id, event_type, to_status) VALUES (%s,'request_created','REQUESTED')", (request_id,))
+        return self.get_repair_request(request_id, actor_key)
+
+    def get_repair_request(self, request_id: str, actor_key: str | None = None) -> dict | None:
+        with self._connect() as conn, conn.cursor() as cur:
+            query = "SELECT id::text, actor_key, session_id::text, equipment_id::text, service_offering_id::text, first_name, phone, postal_code, city, description, desired_time_window, source, quoted_amount_cents, quoted_currency, status, consent_at, created_at, updated_at FROM repair_requests WHERE id=%s"
+            params = [request_id]
+            if actor_key is not None:
+                query += " AND actor_key=%s"
+                params.append(actor_key)
+            cur.execute(query, params)
+            row = cur.fetchone()
+            if not row:
+                return None
+            cur.execute("SELECT media_id::text FROM repair_request_media WHERE request_id=%s", (request_id,))
+            media_ids = [item[0] for item in cur.fetchall()]
+            cur.execute("SELECT event_type, from_status, to_status, note, created_at FROM repair_request_events WHERE request_id=%s ORDER BY created_at", (request_id,))
+            events = [{"event_type": r[0], "from_status": r[1], "to_status": r[2], "note": r[3], "created_at": r[4].isoformat()} for r in cur.fetchall()]
+            cur.execute("SELECT id::text, professional_id::text, status, assigned_at FROM professional_assignments WHERE request_id=%s", (request_id,))
+            a = cur.fetchone()
+            assignment = None if not a else {"id": a[0], "professional_id": a[1], "status": a[2], "assigned_at": a[3].isoformat()}
+            cur.execute("SELECT id::text, starts_at, ends_at, note, created_at FROM appointments WHERE request_id=%s", (request_id,))
+            a = cur.fetchone()
+            appointment = None if not a else {"id": a[0], "starts_at": a[1].isoformat(), "ends_at": a[2].isoformat() if a[2] else None, "note": a[3], "created_at": a[4].isoformat()}
+            keys = ("id", "actor_key", "session_id", "equipment_id", "service_offering_id", "first_name", "phone", "postal_code", "city", "description", "desired_time_window", "source", "quoted_amount_cents", "quoted_currency", "status", "consent_at", "created_at", "updated_at")
+            item = dict(zip(keys, row))
+            for key in ("consent_at", "created_at", "updated_at"):
+                item[key] = item[key].isoformat()
+            item.update({"media_ids": media_ids, "events": events, "assignment": assignment, "appointment": appointment})
+            return item
+
+    def list_repair_requests(self, actor_key: str | None = None) -> list[dict]:
+        with self._connect() as conn, conn.cursor() as cur:
+            if actor_key is None:
+                cur.execute("SELECT id::text FROM repair_requests ORDER BY created_at DESC LIMIT 200")
+            else:
+                cur.execute("SELECT id::text FROM repair_requests WHERE actor_key=%s ORDER BY created_at DESC LIMIT 100", (actor_key,))
+            ids = [row[0] for row in cur.fetchall()]
+        return [self.get_repair_request(item, actor_key) for item in ids]
+
+    def update_repair_request_status(self, request_id: str, status: str, note: str | None = None) -> dict | None:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT status FROM repair_requests WHERE id=%s", (request_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            cur.execute("UPDATE repair_requests SET status=%s, updated_at=now() WHERE id=%s", (status, request_id))
+            cur.execute("INSERT INTO repair_request_events (request_id, event_type, from_status, to_status, note) VALUES (%s,'status_changed',%s,%s,%s)", (request_id, row[0], status, note))
+        return self.get_repair_request(request_id)
+
+    def assign_repair_request(self, request_id: str, professional_id: str) -> dict | None:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM repair_requests WHERE id=%s", (request_id,))
+            if not cur.fetchone(): return None
+            cur.execute("SELECT 1 FROM professionals WHERE id=%s", (professional_id,))
+            if not cur.fetchone(): return None
+            cur.execute("INSERT INTO professional_assignments (request_id, professional_id) VALUES (%s,%s) ON CONFLICT (request_id) DO UPDATE SET professional_id=EXCLUDED.professional_id, status='assigned', assigned_at=now()", (request_id, professional_id))
+        return self.update_repair_request_status(request_id, "ASSIGNED")
+
+    def create_appointment(self, request_id: str, data: dict) -> dict | None:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO appointments (request_id, starts_at, ends_at, note) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING", (request_id, data["starts_at"], data.get("ends_at"), data.get("note")))
+        return self.update_repair_request_status(request_id, "APPOINTMENT_PROPOSED")
+
+    def record_ai_usage(self, data: dict) -> dict:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO ai_usage_events (provider, model, operation_type, input_tokens, cached_tokens, output_tokens, image_count, video_frame_count, audio_duration_seconds, estimated_cost_micros, technical_reference) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id::text, created_at", tuple(data.get(key) for key in ("provider", "model", "operation_type", "input_tokens", "cached_tokens", "output_tokens", "image_count", "video_frame_count", "audio_duration_seconds", "estimated_cost_micros", "technical_reference")))
+            row = cur.fetchone()
+        return data | {"id": row[0], "created_at": row[1].isoformat()}
+
+    def ai_usage_metrics(self) -> dict:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FILTER (WHERE created_at >= now()-interval '1 day'), COUNT(*) FILTER (WHERE created_at >= now()-interval '7 days'), COUNT(*) FILTER (WHERE created_at >= now()-interval '30 days') FROM ai_usage_events")
+            row = cur.fetchone()
+            cur.execute("SELECT operation_type, COUNT(*) FROM ai_usage_events GROUP BY operation_type ORDER BY operation_type")
+            return {"today": row[0], "seven_days": row[1], "thirty_days": row[2], "by_operation": dict(cur.fetchall())}
+
+    def register_device_token(self, actor_key: str, data: dict) -> dict:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("INSERT INTO device_tokens (token, actor_key, platform, active, updated_at) VALUES (%s,%s,%s,true,now()) ON CONFLICT (token) DO UPDATE SET actor_key=EXCLUDED.actor_key, platform=EXCLUDED.platform, active=true, updated_at=now()", (data["token"], actor_key, data["platform"]))
+        return {"platform": data["platform"], "active": True}
+
+    def unregister_device_token(self, actor_key: str, token: str) -> bool:
+        with self._connect() as conn, conn.cursor() as cur:
+            cur.execute("UPDATE device_tokens SET active=false, updated_at=now() WHERE token=%s AND actor_key=%s", (token, actor_key))
+            return cur.rowcount == 1
 
     def create_session(self, equipment_id: str | None = None, assistant_thread_id: str | None = None, actor_key: str | None = None) -> dict:
         session_id = str(uuid4())

@@ -15,7 +15,8 @@ from .media import AUDIO_MIME, LocalPrivateMediaStore, MediaError
 from .video import VideoFrameExtractor, VideoProcessingError, MAX_DURATION_SECONDS
 from .timeline import HouseholdTimelineService
 from .rate_limit import RateLimiter
-from .schemas import ActionType, Analysis, AnalyzeRequest, AssistantMessageRequest, AssistantResponse, AssistantThreadRequest, CommunityCommentRequest, CommunityPostRequest, CommunityPublishRequest, CommunityReportRequest, Diy, DocumentAnalyzeRequest, DocumentApplyRequest, EquipmentCreateRequest, EquipmentIdentification, EquipmentMediaRequest, EquipmentUpdateRequest, EquipmentDocumentUpdateRequest, LeadRequest, MaintenanceRequest, NextAction, ProfessionalDossierRequest, ProfessionalInput, ProfessionalUpdate, RepairRecordRequest, RepairRecordUpdate, RepairVerification, Risk, RiskLevel, SessionRequest, ShareRepairRequest, SimilarCasesRequest, VerificationRequest, WarrantyRequest
+from .schemas import ActionType, Analysis, AnalyzeRequest, AppointmentRequest, AssistantMessageRequest, AssistantResponse, AssistantThreadRequest, CommunityCommentRequest, CommunityPostRequest, CommunityPublishRequest, CommunityReportRequest, CommerceSearchRequest, CoverageInterestRequest, DeviceTokenRequest, Diy, DocumentAnalyzeRequest, DocumentApplyRequest, EquipmentCreateRequest, EquipmentIdentification, EquipmentMediaRequest, EquipmentUpdateRequest, EquipmentDocumentUpdateRequest, LeadRequest, MaintenanceRequest, NextAction, ProfessionalDossierRequest, ProfessionalInput, ProfessionalUpdate, RepairAssignmentRequest, RepairRecordRequest, RepairRecordUpdate, RepairRequestCreate, RepairRequestStatusUpdate, RepairVerification, Risk, RiskLevel, SessionRequest, ShareRepairRequest, SimilarCasesRequest, SupportContributionRequest, VerificationRequest, WarrantyRequest
+from .commerce import build_commerce_search
 from .safety import apply_postcheck, safety_precheck
 
 app = FastAPI(title="NALVIUM API", version="0.2.0")
@@ -24,7 +25,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:3000", "http
 store = build_store()
 media_store = LocalPrivateMediaStore()
 limit = int(os.getenv("NALVIUM_RATE_LIMIT_PER_MINUTE", "12"))
-rate_limiters = {"session": RateLimiter(min(limit, 6)), "upload": RateLimiter(min(limit, 8)), "analysis": RateLimiter(limit), "assistant": RateLimiter(limit), "lead": RateLimiter(3), "transcription": RateLimiter(6), "community_post": RateLimiter(5), "community_comment": RateLimiter(20), "community_report": RateLimiter(5)}
+rate_limiters = {"session": RateLimiter(min(limit, 6)), "upload": RateLimiter(min(limit, 8)), "analysis": RateLimiter(limit), "assistant": RateLimiter(limit), "lead": RateLimiter(3), "repair_request": RateLimiter(3), "transcription": RateLimiter(6), "community_post": RateLimiter(5), "community_comment": RateLimiter(20), "community_report": RateLimiter(5), "device_token": RateLimiter(10)}
 admin_token = os.getenv("NALVIUM_ADMIN_TOKEN", "")
 
 def build_provider():
@@ -36,6 +37,13 @@ provider = build_provider()
 frame_extractor = VideoFrameExtractor()
 transcription_service = AudioTranscriptionService(getattr(provider, "client", None))
 timeline_service = HouseholdTimelineService(store)
+
+def record_ai_operation(operation_type: str, *, image_count: int = 0, video_frame_count: int = 0, audio_duration_seconds: int | None = None, reference: str | None = None) -> None:
+    try:
+        store.record_ai_usage({"provider": os.getenv("NALVIUM_AI_PROVIDER", "mock"), "model": os.getenv("OPENAI_MODEL", "configured"), "operation_type": operation_type, "image_count": image_count, "video_frame_count": video_frame_count, "audio_duration_seconds": audio_duration_seconds, "technical_reference": reference})
+    except Exception:
+        # Cost monitoring must never break safety or the user flow.
+        pass
 
 def client_key(request: Request) -> str:
     return request.client.host if request.client else "local"
@@ -54,6 +62,27 @@ def community_actor(x_client_id: str | None) -> str:
         raise HTTPException(401, "Identité communautaire requise")
     return x_client_id
 
+def repair_actor(x_client_id: str | None) -> str:
+    if not x_client_id or len(x_client_id) < 16 or len(x_client_id) > 128:
+        raise HTTPException(401, "Identité d'installation requise")
+    return x_client_id
+
+REQUEST_TRANSITIONS = {
+    "REQUESTED": {"REVIEWING", "CANCELLED"},
+    "REVIEWING": {"ASSIGNED", "CANCELLED", "UNAVAILABLE"},
+    "ASSIGNED": {"APPOINTMENT_PROPOSED", "CANCELLED", "UNAVAILABLE"},
+    "APPOINTMENT_PROPOSED": {"APPOINTMENT_CONFIRMED", "CANCELLED"},
+    "APPOINTMENT_CONFIRMED": {"IN_PROGRESS", "CANCELLED"},
+    "IN_PROGRESS": {"COMPLETED", "CANCELLED"},
+    "COMPLETED": set(),
+    "CANCELLED": set(),
+    "UNAVAILABLE": set(),
+}
+
+def validate_request_transition(current: str, target: str) -> None:
+    if target not in REQUEST_TRANSITIONS.get(current, set()):
+        raise HTTPException(409, f"Transition impossible depuis {current}")
+
 def community_moderation_status(text: str) -> str:
     lowered = text.lower()
     dangerous = ("sous tension", "branche directement les fils", "relie les fils", "contourner la sécurité", "odeur de gaz", "fuite de gaz", "court-circuit", "fils exposés", "eau et électricité")
@@ -67,14 +96,17 @@ def health():
     return {"status": "ok", "environment": "local", "ai_provider": provider.__class__.__name__, "database": "postgresql" if store.persistent else "memory-fallback"}
 
 @app.post("/v1/sessions")
-def create_session(request: Request, payload: SessionRequest | None = None):
+def create_session(request: Request, payload: SessionRequest | None = None, x_client_id: str | None = Header(default=None)):
     require_rate(request, "session")
     equipment_id = payload.equipment_id if payload else None
     if equipment_id and not store.get_equipment(equipment_id):
         raise HTTPException(404, "Équipement introuvable")
     if payload and payload.assistant_thread_id and not store.get_assistant_thread(payload.assistant_thread_id):
         raise HTTPException(404, "Conversation introuvable")
-    return store.create_session(equipment_id, payload.assistant_thread_id if payload else None, payload.actor_key if payload else None)
+    actor_key = (payload.actor_key if payload else None) or x_client_id
+    if actor_key is not None and len(actor_key) < 16:
+        raise HTTPException(422, "Identité d'installation invalide")
+    return store.create_session(equipment_id, payload.assistant_thread_id if payload else None, actor_key)
 
 @app.get("/v1/sessions/active")
 def active_sessions():
@@ -98,6 +130,114 @@ def activity(limit: int = 30, offset: int = 0):
     if limit < 1 or limit > 100 or offset < 0:
         raise HTTPException(422, "Pagination invalide")
     return {"events": timeline_service.activity(limit, offset), "limit": limit, "offset": offset}
+
+@app.get("/v1/service-categories")
+def service_categories():
+    return {"categories": store.list_service_categories(), "offerings": store.list_service_offerings()}
+
+@app.get("/v1/service-offerings")
+def service_offerings():
+    return {"offerings": store.list_service_offerings()}
+
+@app.get("/v1/service-availability")
+def service_availability(postal_code: str):
+    normalized = postal_code.strip().replace(" ", "")
+    if not normalized.isdigit() or len(normalized) not in {5}:
+        raise HTTPException(422, "Code postal invalide")
+    return store.service_availability(normalized)
+
+@app.post("/v1/coverage-interests")
+def coverage_interest(request: Request, payload: CoverageInterestRequest, x_client_id: str | None = Header(default=None)):
+    if not payload.consent:
+        raise HTTPException(400, "Le consentement est requis")
+    actor = repair_actor(x_client_id)
+    return store.create_coverage_interest({"actor_key": actor, "postal_code": payload.postal_code.strip().replace(" ", ""), "contact": payload.contact, "consent": True})
+
+@app.post("/v1/repair-requests")
+def create_repair_request(request: Request, payload: RepairRequestCreate, x_client_id: str | None = Header(default=None), idempotency_key: str | None = Header(default=None, alias="Idempotency-Key")):
+    require_rate(request, "repair_request")
+    actor = repair_actor(x_client_id)
+    if not payload.consent:
+        raise HTTPException(400, "Le consentement est requis avant de transmettre la demande")
+    key = idempotency_key or payload.idempotency_key
+    if not key:
+        raise HTTPException(422, "Une clé d'idempotence est requise")
+    offering = next((item for item in store.list_service_offerings(False) if item.get("id") == payload.service_offering_id and item.get("active")), None)
+    if not offering:
+        raise HTTPException(404, "Service indisponible")
+    availability = store.service_availability(payload.postal_code)
+    if not any(item.get("id") == offering["id"] for item in availability.get("available_services", [])):
+        raise HTTPException(409, "Nous n'avons pas encore de professionnel disponible dans votre secteur.")
+    session = store.get_session(payload.session_id) if payload.session_id else None
+    if payload.session_id and not session:
+        raise HTTPException(404, "Diagnostic introuvable")
+    if session and session.get("actor_key") != actor:
+        raise HTTPException(403, "Diagnostic non autorisé")
+    if payload.equipment_id and not store.get_equipment(payload.equipment_id):
+        raise HTTPException(404, "Équipement introuvable")
+    valid_media = []
+    for media_id in payload.selected_media_ids:
+        media = store.get_media(media_id)
+        if not media or media.get("session_id") != payload.session_id:
+            raise HTTPException(403, "Un média sélectionné n'est pas autorisé")
+        valid_media.append(media_id)
+    data = payload.model_dump(exclude={"consent", "selected_media_ids", "idempotency_key"})
+    result = store.create_repair_request(data, actor, valid_media, key)
+    return {**result, "pricing": {key: offering.get(key) for key in ("pricing_type", "price_cents", "min_price_cents", "max_price_cents", "currency", "callout_included", "diagnosis_included")}}
+
+@app.get("/v1/repair-requests")
+def list_repair_requests(x_client_id: str | None = Header(default=None)):
+    return {"requests": store.list_repair_requests(repair_actor(x_client_id))}
+
+@app.get("/v1/repair-requests/{request_id}")
+def get_repair_request(request_id: str, x_client_id: str | None = Header(default=None)):
+    result = store.get_repair_request(request_id, repair_actor(x_client_id))
+    if not result:
+        raise HTTPException(404, "Demande introuvable")
+    return result
+
+@app.post("/v1/repair-requests/{request_id}/cancel")
+def cancel_repair_request(request_id: str, x_client_id: str | None = Header(default=None)):
+    actor = repair_actor(x_client_id)
+    result = store.get_repair_request(request_id, actor)
+    if not result:
+        raise HTTPException(404, "Demande introuvable")
+    validate_request_transition(result["status"], "CANCELLED")
+    return store.update_repair_request_status(request_id, "CANCELLED", "Annulée par l'utilisateur")
+
+@app.post("/v1/device-tokens")
+def register_device_token(request: Request, payload: DeviceTokenRequest, x_client_id: str | None = Header(default=None)):
+    require_rate(request, "device_token")
+    return store.register_device_token(repair_actor(x_client_id), payload.model_dump())
+
+@app.delete("/v1/device-tokens/{token}")
+def unregister_device_token(token: str, x_client_id: str | None = Header(default=None)):
+    if not store.unregister_device_token(repair_actor(x_client_id), token):
+        raise HTTPException(404, "Token introuvable")
+    return {"unregistered": True}
+
+@app.get("/v1/support/config")
+def support_config():
+    enabled = os.getenv("SUPPORT_PAYMENTS_ENABLED", "false").lower() == "true"
+    return {"enabled": enabled, "amounts_cents": [100, 500], "currency": "EUR", "provider": None if not enabled else "REQUIRES_SERVER_PROVIDER"}
+
+@app.post("/v1/commerce/search")
+def commerce_search(request: Request, payload: CommerceSearchRequest):
+    require_rate(request, "analysis")
+    if payload.safety_stop:
+        raise HTTPException(409, "Cette situation est arrêtée pour votre sécurité.")
+    result = build_commerce_search(**payload.model_dump(exclude={"safety_stop"}))
+    if hasattr(store, "record_commerce_event"):
+        store.record_commerce_event({"event_name": "nearby_store_clicked" if payload.mode == "nearby" else "online_purchase_clicked", "item_type": payload.item_type, "normalized_item": payload.generic_name[:160], "provider": result.provider})
+    return result.__dict__
+
+@app.post("/v1/support/contributions")
+def create_support_contribution(request: Request, payload: SupportContributionRequest, x_client_id: str | None = Header(default=None)):
+    if os.getenv("SUPPORT_PAYMENTS_ENABLED", "false").lower() != "true":
+        raise HTTPException(409, "Les contributions ne sont pas encore activées.")
+    # Deliberately no provider is enabled until store, fiscal and server-side
+    # payment validation are completed. Never create a fake success here.
+    raise HTTPException(503, "Le prestataire de contribution n'est pas configuré.")
 
 @app.delete("/v1/sessions/{session_id}")
 def delete_session(session_id: str):
@@ -183,6 +323,7 @@ def analyze(request: Request, payload: AnalyzeRequest):
         except ProviderError as exc:
             raise HTTPException(503, str(exc)) from exc
         result = apply_postcheck(result, payload.text)
+        record_ai_operation("diagnostic_video" if frames is not None else "diagnostic_image" if image_bytes is not None else "diagnostic_text", image_count=1 if image_bytes is not None else 0, video_frame_count=len(frames or []), reference=payload.session_id)
     if payload.session_id:
         store.save_analysis(payload.session_id, result.model_dump())
     return result
@@ -456,6 +597,7 @@ def send_assistant_message(request: Request, thread_id: str, payload: AssistantM
         except ProviderError as exc:
             raise HTTPException(503, str(exc)) from exc
         result = apply_postcheck(result, source_text)
+        record_ai_operation("assistant_video" if frames is not None else "assistant_image" if image_bytes is not None else "assistant_text", image_count=1 if image_bytes is not None else 0, video_frame_count=len(frames or []), reference=thread_id)
     content = result.assistant_message
     assistant = store.add_assistant_message(thread_id, "assistant", content, [], context)
     return AssistantResponse(thread_id=thread_id, message_id=assistant["id"], role="assistant", content=content, action=_assistant_action(result), next_action=result.next_action.model_dump(), safety_stop=result.risk.stop_diy, media_references=media_ids, context=context)
@@ -730,6 +872,111 @@ def list_leads(x_admin_token: str | None = Header(default=None)):
     require_admin(x_admin_token)
     return store.list_leads()
 
+@app.get("/v1/admin/repair-requests")
+def admin_repair_requests(x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    return {"requests": store.list_repair_requests()}
+
+@app.patch("/v1/admin/repair-requests/{request_id}")
+def admin_update_repair_request(request_id: str, payload: RepairRequestStatusUpdate, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    current = store.get_repair_request(request_id)
+    if not current:
+        raise HTTPException(404, "Demande introuvable")
+    validate_request_transition(current["status"], payload.status)
+    return store.update_repair_request_status(request_id, payload.status, payload.note)
+
+@app.post("/v1/admin/repair-requests/{request_id}/assign")
+def admin_assign_repair_request(request_id: str, payload: RepairAssignmentRequest, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    result = store.assign_repair_request(request_id, payload.professional_id)
+    if not result:
+        raise HTTPException(404, "Demande ou professionnel introuvable")
+    return result
+
+@app.post("/v1/admin/repair-requests/{request_id}/appointment")
+def admin_appointment(request_id: str, payload: AppointmentRequest, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    current = store.get_repair_request(request_id)
+    if not current:
+        raise HTTPException(404, "Demande introuvable")
+    if current["status"] not in {"ASSIGNED", "APPOINTMENT_PROPOSED"}:
+        raise HTTPException(409, "Un rendez-vous ne peut pas être proposé dans cet état")
+    return store.create_appointment(request_id, payload.model_dump())
+
+@app.get("/v1/admin/service-categories")
+def admin_service_categories(x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    return {"categories": store.list_service_categories(False)}
+
+@app.post("/v1/admin/service-categories")
+def admin_create_service_category(payload: dict, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    if not payload.get("slug") or not payload.get("title"):
+        raise HTTPException(422, "Slug et titre requis")
+    return store.create_service_category({"slug": str(payload["slug"]), "title": str(payload["title"]), "description": payload.get("description"), "active": bool(payload.get("active", False)), "display_order": int(payload.get("display_order", 0))})
+
+@app.patch("/v1/admin/service-categories/{category_id}")
+def admin_update_service_category(category_id: str, payload: dict, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    result = store.update_service_category(category_id, payload)
+    if not result:
+        raise HTTPException(404, "Catégorie introuvable")
+    return result
+
+@app.get("/v1/admin/service-offerings")
+def admin_service_offerings(x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    return {"offerings": store.list_service_offerings(False)}
+
+@app.post("/v1/admin/service-offerings")
+def admin_create_service_offering(payload: dict, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    required = ("category_id", "slug", "title", "pricing_type")
+    if any(not payload.get(key) for key in required) or payload.get("pricing_type") not in {"FIXED", "STARTING_FROM", "RANGE", "QUOTE_REQUIRED"}:
+        raise HTTPException(422, "Offre ou tarification invalide")
+    data = dict(payload)
+    data.setdefault("active", False)
+    data.setdefault("currency", "EUR")
+    return store.create_service_offering(data)
+
+@app.patch("/v1/admin/service-offerings/{offering_id}")
+def admin_update_service_offering(offering_id: str, payload: dict, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    if "pricing_type" in payload and payload["pricing_type"] not in {"FIXED", "STARTING_FROM", "RANGE", "QUOTE_REQUIRED"}:
+        raise HTTPException(422, "Tarification invalide")
+    result = store.update_service_offering(offering_id, payload)
+    if not result:
+        raise HTTPException(404, "Offre introuvable")
+    return result
+
+@app.get("/v1/admin/service-areas")
+def admin_service_areas(x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    return {"areas": store.list_service_areas()}
+
+@app.post("/v1/admin/service-areas")
+def admin_create_service_area(payload: dict, x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    if not payload.get("name") or not isinstance(payload.get("postal_codes", []), list):
+        raise HTTPException(422, "Zone invalide")
+    return store.create_service_area({"name": str(payload["name"]), "postal_codes": [str(code).replace(" ", "") for code in payload.get("postal_codes", [])], "department_code": payload.get("department_code"), "active": bool(payload.get("active", False)), "offering_ids": payload.get("offering_ids", [])})
+
+@app.get("/v1/admin/ai-costs")
+def admin_ai_costs(x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    return store.ai_usage_metrics()
+
+@app.get("/v1/admin/support")
+def admin_support(x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    return store.support_metrics()
+
+@app.get("/v1/admin/commerce")
+def admin_commerce(x_admin_token: str | None = Header(default=None)):
+    require_admin(x_admin_token)
+    return store.commerce_metrics() if hasattr(store, "commerce_metrics") else {"events": {}, "items": []}
+
 @app.get("/v1/admin/diagnostics")
 def list_diagnostics(x_admin_token: str | None = Header(default=None)):
     require_admin(x_admin_token)
@@ -742,7 +989,8 @@ def metrics(x_admin_token: str | None = Header(default=None)):
     leads = store.list_leads()
     community = store.list_community_admin()
     reports = store.list_community_reports()
-    return {"diagnostics": len(sessions), "leads": len(leads), "safety_stops": sum(1 for s in sessions if s.get("risk_level") in {"high", "emergency"}), "resolved": sum(1 for s in sessions if s.get("status") == "resolved"), "community_posts": len(community), "community_reports_pending": sum(1 for item in reports if item.get("status") == "pending")}
+    repair_requests = store.list_repair_requests()
+    return {"diagnostics": len(sessions), "leads": len(leads), "repair_requests": len(repair_requests), "safety_stops": sum(1 for s in sessions if s.get("risk_level") in {"high", "emergency"}), "resolved": sum(1 for s in sessions if s.get("status") == "resolved"), "community_posts": len(community), "community_reports_pending": sum(1 for item in reports if item.get("status") == "pending"), "ai_costs": store.ai_usage_metrics()}
 
 @app.get("/v1/admin/community/posts")
 def admin_community_posts(x_admin_token: str | None = Header(default=None)):

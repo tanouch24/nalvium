@@ -135,3 +135,9 @@ Journal minimal :
 ## Rétention
 
 Les durées exactes seront définies dans PRIVACY.md et la politique publique avant production. Prévoir suppression/anonymisation technique dès V1.
+## Lot 8 — réseau dépannage
+
+La migration `008_service_network.sql` ajoute le catalogue administrable, les zones, `repair_requests`, médias explicitement associés, événements de statut, assignations, rendez-vous, intérêts de couverture, tokens appareil et métriques IA minimisées. Elle est additive et ne doit pas être appliquée directement en production sans procédure de migration validée.
+Migration 009 ajoute les contributions volontaires désactivées par défaut et
+les agrégats techniques de recherche de matériel (`commerce_events`). Aucun
+catalogue commercial, stock, commande ou donnée bancaire n'est stocké.

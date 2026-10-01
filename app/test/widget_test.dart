@@ -4,6 +4,9 @@ import 'package:nalvium_app/main.dart';
 import 'package:nalvium_app/api_client.dart';
 import 'package:nalvium_app/equipment_screens.dart';
 import 'package:nalvium_app/history_store.dart';
+import 'package:nalvium_app/repair_network_screens.dart';
+import 'package:nalvium_app/materials_screens.dart';
+import 'package:nalvium_app/support_screens.dart';
 
 void main() {
   testWidgets('onboarding shows primary action', (tester) async {
@@ -94,4 +97,44 @@ void main() {
     expect(find.text('Entretien'), findsOneWidget);
     expect(find.text('Aucun entretien enregistré.'), findsOneWidget);
   });
+
+  testWidgets('repair request detail keeps availability honest', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: RepairRequestDetailScreen(
+          request: {
+            'description': 'Fuite sous évier',
+            'status': 'REQUESTED',
+            'postal_code': '75011',
+            'desired_time_window': '',
+          },
+        ),
+      ),
+    );
+    expect(find.text('Fuite sous évier'), findsOneWidget);
+    expect(find.textContaining('Aucun artisan'), findsOneWidget);
+  });
+
+  testWidgets('required material blocks until mandatory item is owned', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: RequiredItemsScreen(
+      api: const ApiClient(),
+      items: const [{'type': 'TOOL', 'name': 'Tournevis', 'required': true}],
+      onContinue: _noop,
+    )));
+    expect(find.text('Tournevis'), findsOneWidget);
+    final button = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'J’ai le matériel — Continuer'));
+    expect(button.onPressed, isNull);
+    await tester.tap(find.byType(Checkbox));
+    await tester.pump();
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'J’ai le matériel — Continuer')).onPressed, isNotNull);
+  });
+
+  testWidgets('support page stays disabled without a payment provider', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: SupportScreen()));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.textContaining('contributions'), findsWidgets);
+    expect(find.widgetWithText(FilledButton, 'Soutenir Nalvium'), findsNothing);
+  });
 }
+
+void _noop() {}

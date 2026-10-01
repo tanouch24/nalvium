@@ -21,6 +21,8 @@
 - READY — `google_mobile_ads` est intégré techniquement, mais les publicités restent désactivées par défaut et aucune publicité n’est affichée dans les parcours sensibles.
 - READY — UMP est appelé uniquement si la publicité est explicitement activée par configuration.
 - À COMPLÉTER — Firebase/Google Analytics, Crashlytics, FCM et Meta App Events ne sont pas configurés dans le projet Flutter actuel ; ne pas les déclarer comme intégrés avant ajout réel.
+- À COMPLÉTER — réseau dépannage : catalogue, couverture, consentement, transmission de médias et statuts doivent être validés sur environnement de recette.
+- À VALIDER JURIDIQUEMENT — rôle de NALVIUM dans l’intermédiation, relation avec les professionnels, facturation, assurance, médiation, annulation et information précontractuelle.
 - À VALIDER JURIDIQUEMENT — déclarations Google Play Data Safety et Apple App Privacy après choix définitif des SDK.
 
 ## UGC
@@ -33,3 +35,7 @@
 - À COMPLÉTER — URLs publiques confidentialité/CGU/règles.
 - À COMPLÉTER — identité éditeur, support, classification, Data Safety, App Privacy, âge et notes de review.
 - À VALIDER JURIDIQUEMENT — textes et déclarations finales avant soumission.
+- [À VALIDER] Les éventuels liens affiliés de recherche de matériel, leur
+  signalement et leur qualification juridique avant activation.
+- [READY - V1] Aucun paiement, stock, prix ou disponibilité de matériel n'est
+  présenté par NALVIUM sans donnée vérifiée.

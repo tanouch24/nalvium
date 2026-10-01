@@ -14,6 +14,7 @@ Document de préparation uniquement. Les réponses finales doivent être vérifi
 - [ ] `NALVIUM_API_URL` de release pointe vers un backend HTTPS réel ; le guard refuse localhost/LAN.
 - [ ] Permissions caméra, microphone, photos/médias et notifications justifiées et minimisées.
 - [ ] Fiche store, classification de contenu, captures réelles et notes de test préparées.
+- [ ] Si le réseau dépannage est activé : couverture réellement administrée, consentement et absence de promesse de disponibilité/prix final vérifiés.
 
 ## Apple App Store — à vérifier avant soumission
 
@@ -29,3 +30,5 @@ Document de préparation uniquement. Les réponses finales doivent être vérifi
 - `google_mobile_ads` est intégré derrière flags ; App Open, interstitial et rewarded sont préparés mais aucune publicité n’est affichée par défaut.
 - Firebase/Google Analytics, Meta App Events, Crashlytics et FCM ne sont pas intégrés dans cette version et ne doivent pas être déclarés comme tels.
 - Les données légales éditeur, durées de conservation, bases juridiques, sous-traitants et URLs publiques restent à compléter/valider.
+- [READY - V1] Les recherches de matériel sont externes, génériques et sans
+  boutique, panier, paiement ou promesse de disponibilité.

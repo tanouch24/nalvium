@@ -36,6 +36,33 @@ def test_invalid_media_is_rejected():
     response = client.post("/v1/media", files={"file": ("bad.txt", b"not an image", "text/plain")})
     assert response.status_code == 415
 
+def test_commerce_search_is_generic_and_never_claims_stock():
+    response = client.post('/v1/commerce/search', json={
+        'mode': 'nearby', 'item_type': 'PART', 'generic_name': 'joint adapté au raccord',
+        'postal_code': '75011', 'city': 'Paris',
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert body['availability_known'] is False
+    assert body['price_known'] is False
+    assert '75011' in body['search_url']
+    assert 'phone' not in body['search_url']
+
+def test_commerce_is_blocked_after_safety_stop():
+    response = client.post('/v1/commerce/search', json={
+        'mode': 'online', 'item_type': 'TOOL', 'generic_name': 'tournevis', 'safety_stop': True,
+    })
+    assert response.status_code == 409
+
+def test_support_is_disabled_without_fake_checkout():
+    assert client.get('/v1/support/config').json()['enabled'] is False
+    response = client.post('/v1/support/contributions', headers={'X-Client-Id': 'support-client-000001'}, json={'amount_cents': 100, 'source': 'SETTINGS'})
+    assert response.status_code == 409
+
+def test_admin_commerce_contains_only_aggregates():
+    response = client.get('/v1/admin/commerce', headers={'X-Admin-Token': 'test-admin-token'})
+    assert response.status_code in {200, 401}
+
 def test_large_media_is_rejected():
     response = client.post("/v1/media", files={"file": ("big.jpg", b"x" * (8 * 1024 * 1024 + 1), "image/jpeg")})
     assert response.status_code == 413
@@ -56,6 +83,52 @@ def test_lead_requires_consent_and_admin_auth():
     lead = {"session_id": session_id, "first_name": "Ana", "phone": "0612345678", "city": "Lyon", "postal_code": "69003", "trade": "plombier", "summary": "Fuite", "urgency": "normal", "consent": False, "media_ids": []}
     assert client.post("/v1/leads", json=lead).status_code == 400
     assert client.get("/v1/admin/leads").status_code == 401
+
+def _service_fixture():
+    category = client.post("/v1/admin/service-categories", headers={"X-Admin-Token": "test"}, json={"slug": "plomberie-test", "title": "Plomberie test", "active": True}).json()
+    offering = client.post("/v1/admin/service-offerings", headers={"X-Admin-Token": "test"}, json={"category_id": category["id"], "slug": "fuite-test", "title": "Fuite d'eau test", "pricing_type": "QUOTE_REQUIRED", "active": True}).json()
+    area = client.post("/v1/admin/service-areas", headers={"X-Admin-Token": "test"}, json={"name": "Zone test", "postal_codes": ["75011"], "active": True, "offering_ids": [offering["id"]]}).json()
+    return offering, area
+
+def test_service_catalog_and_coverage_are_dynamic():
+    offering, _ = _service_fixture()
+    catalog = client.get("/v1/service-categories")
+    assert catalog.status_code == 200
+    assert any(item["id"] == offering["id"] for item in catalog.json()["offerings"])
+    assert client.get("/v1/service-availability", params={"postal_code": "75011"}).json()["covered"] is True
+    assert client.get("/v1/service-availability", params={"postal_code": "33000"}).json()["covered"] is False
+
+def test_repair_request_requires_consent_coverage_and_is_idempotent():
+    offering, _ = _service_fixture()
+    actor = "test-actor-1234567890"
+    payload = {"service_offering_id": offering["id"], "first_name": "Ana", "phone": "0612345678", "postal_code": "75011", "description": "Fuite sous évier", "consent": False}
+    assert client.post("/v1/repair-requests", headers={"X-Client-Id": actor, "Idempotency-Key": "k1"}, json=payload).status_code == 400
+    payload["consent"] = True
+    first = client.post("/v1/repair-requests", headers={"X-Client-Id": actor, "Idempotency-Key": "k1"}, json=payload)
+    second = client.post("/v1/repair-requests", headers={"X-Client-Id": actor, "Idempotency-Key": "k1"}, json=payload)
+    assert first.status_code == second.status_code == 200
+    assert first.json()["id"] == second.json()["id"]
+    assert client.get("/v1/repair-requests", headers={"X-Client-Id": actor}).json()["requests"]
+
+def test_repair_request_status_transitions_assignment_appointment_and_cancel():
+    offering, _ = _service_fixture()
+    actor = "test-actor-status-123456"
+    request = client.post("/v1/repair-requests", headers={"X-Client-Id": actor, "Idempotency-Key": "status-1"}, json={"service_offering_id": offering["id"], "first_name": "Ana", "phone": "0612345678", "postal_code": "75011", "description": "Robinet", "consent": True}).json()
+    professional = client.post("/v1/admin/professionals", headers={"X-Admin-Token": "test"}, json={"business_name": "Test pro", "legal_name": "", "phone": "0611111111", "email": "pro@example.com", "trade": "plomberie", "city": "75011", "active": True}).json()
+    assert client.patch(f"/v1/admin/repair-requests/{request['id']}", headers={"X-Admin-Token": "test"}, json={"status": "REVIEWING"}).status_code == 200
+    assert client.post(f"/v1/admin/repair-requests/{request['id']}/assign", headers={"X-Admin-Token": "test"}, json={"professional_id": professional["id"]}).status_code == 200
+    assert client.post(f"/v1/admin/repair-requests/{request['id']}/appointment", headers={"X-Admin-Token": "test"}, json={"starts_at": "2026-10-10T10:00:00Z"}).status_code == 200
+    assert client.patch(f"/v1/admin/repair-requests/{request['id']}", headers={"X-Admin-Token": "test"}, json={"status": "COMPLETED"}).status_code == 409
+    assert client.post(f"/v1/repair-requests/{request['id']}/cancel", headers={"X-Client-Id": actor}).status_code == 200
+
+def test_device_token_lifecycle_and_ai_metrics_are_privacy_scoped():
+    actor = "test-device-actor-123456"
+    token = "fcm-test-token-12345678901234567890"
+    assert client.post("/v1/device-tokens", headers={"X-Client-Id": actor}, json={"token": token, "platform": "android"}).status_code == 200
+    assert client.delete(f"/v1/device-tokens/{token}", headers={"X-Client-Id": actor}).status_code == 200
+    metrics = client.get("/v1/admin/ai-costs", headers={"X-Admin-Token": "test"})
+    assert metrics.status_code == 200
+    assert "prompts" not in str(metrics.json()).lower()
 
 def test_consented_lead_is_visible_only_to_authenticated_admin():
     session_id = client.post("/v1/sessions").json()["id"]
