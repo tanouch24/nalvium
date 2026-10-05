@@ -1,0 +1,62 @@
+/* Homepage V9.3 mobile guardrails: keep the header, CTA and app mockup inside the viewport. */
+@media (max-width: 800px) {
+  .site-header {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-menu {
+    flex: 0 0 auto;
+    color: var(--white);
+  }
+}
+
+@media (max-width: 700px) {
+  .hero-app-first,
+  .hero-app-copy,
+  .hero-app-showcase {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .hero-app-copy p {
+    max-width: 100%;
+    overflow-wrap: break-word;
+  }
+
+  .hero-app-copy .button {
+    max-width: 100%;
+  }
+
+  .hero-phone-wrap {
+    left: auto;
+    right: auto;
+    transform: none;
+    width: min(360px, calc(100vw - 48px));
+    max-width: 100%;
+    margin-inline: auto;
+  }
+
+  .hero-phone-wrap .nalvium-phone {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .hero-app-copy > .button { width: 100%; max-width: 100%; min-width: 0; }
+  .hero-app-copy, .hero-app-copy h1, .hero-app-copy p, .hero-app-showcase, .hero-app-showcase-simple { min-width: 0; }
+  .breadcrumbs, .page-hero-v5-copy, .page-hero-v5-copy h1, .page-hero-v5-body, .article-intro { min-width: 0; overflow-wrap: anywhere; }
+}
+
+.mobile-menu-toggle, .mobile-menu-close { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.mobile-menu-toggle { display: grid; place-items: center; font-size: 1.55rem; }
+.mobile-menu-panel { position: fixed; inset: 0; z-index: 50; padding: 20px 24px 28px; background: var(--bg); display: flex; flex-direction: column; }
+.mobile-menu-panel-head { display: flex; align-items: center; justify-content: space-between; }
+.mobile-menu-panel nav { display: grid; gap: 4px; margin-top: 36px; }
+.mobile-menu-panel nav a, .mobile-menu-cta { min-height: 52px; display: flex; align-items: center; padding: 8px 0; font-size: 1.15rem; border-bottom: 1px solid var(--line); }
+.mobile-menu-cta { margin-top: 28px; justify-content: space-between; color: var(--blue-light); font-weight: 700; border: 0; }
+.mobile-menu-close { font-size: 2rem; line-height: 1; }
+:where(a, button, summary):focus-visible { outline: 3px solid var(--blue-light); outline-offset: 3px; }
+@media (min-width: 801px) { .mobile-menu { display: none; } }
+@media (max-width: 800px) { .desktop-nav, .header-cta { display: none; } .site-header { padding-inline: max(18px, 5vw); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
