@@ -11,6 +11,7 @@ const DEFAULT_PUBLISHED_OUTPUT = 'app/data/france/published-catalog.json';
 const DEFAULT_HISTORY = 'data/france/published-url-history.json';
 const DEFAULT_REPORT = 'data/insee/cog-2026/import-report.json';
 const REQUIRED_COMMUNE_COLUMNS = ['TYPECOM', 'COM', 'REG', 'DEP', 'CTCD', 'ARR', 'TNCC', 'NCC', 'NCCENR', 'LIBELLE', 'CAN', 'COMPARENT'];
+const NATIONAL_PROBLEMS = ['fuite-eau', 'wc-bouche', 'canalisation-bouchee'];
 
 function option(name, fallback) {
   const index = process.argv.indexOf(`--${name}`);
@@ -123,6 +124,7 @@ const baseCities = communeRowsOnly.map(row => {
     regionName: region.NCCENR || region.LIBELLE,
     typecom: row.TYPECOM,
     seoStatus: 'hub',
+    nationalProblems: NATIONAL_PROBLEMS,
     activeProblems: [],
     neighborInseeCodes: [],
     relatedCityInseeCodes: [],
@@ -136,7 +138,7 @@ const baseCities = communeRowsOnly.map(row => {
     if (publishedUrlHistory[row.COM]) return { ...generated, urlSlug: publishedUrlHistory[row.COM], urlSlugLocked: true };
     return generated;
   }
-  return { ...generated, ...previous, inseeCode: row.COM, name, displayName: row.LIBELLE || name, departmentCode: row.DEP, departmentName: generated.departmentName, regionCode: row.REG, regionName: generated.regionName, typecom: row.TYPECOM, sourceUrl: previous.sourceUrl || SOURCE_PAGE, ...(publishedUrlHistory[row.COM] ? { urlSlug: publishedUrlHistory[row.COM], urlSlugLocked: true } : { urlSlugLocked: true }) };
+  return { ...generated, ...previous, inseeCode: row.COM, name, displayName: row.LIBELLE || name, departmentCode: row.DEP, departmentName: generated.departmentName, regionCode: row.REG, regionName: generated.regionName, typecom: row.TYPECOM, nationalProblems: NATIONAL_PROBLEMS, sourceUrl: previous.sourceUrl || SOURCE_PAGE, ...(publishedUrlHistory[row.COM] ? { urlSlug: publishedUrlHistory[row.COM], urlSlugLocked: true } : { urlSlugLocked: true }) };
 });
 
 const collisions = resolveUrlSlugs(baseCities);

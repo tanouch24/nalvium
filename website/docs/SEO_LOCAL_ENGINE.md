@@ -7,17 +7,17 @@ Une commune est identifiée par son code officiel géographique Insee (`inseeCod
 
 Le catalogue complet est dans `data/france/catalog.json`. Il contient les 34 875 communes `COM` du COG 2026. Les sept communes historiques — Lyon, Nice, Villeurbanne, Bron, Vénissieux, Saint-Priest et Caluire-et-Cuire — restent `seoStatus: "full"`; les 34 868 autres communes sont `seoStatus: "hub"` sans problème local activé. Les codes, départements et régions viennent des fichiers COG officiels ; aucune population n’est importée et aucun voisinage n’est inventé.
 
-Le registre des problèmes est dans le même catalogue. Les trois intentions Métropole V1 sont obligatoires : `fuite-eau`, `wc-bouche` et `canalisation-bouchee`. Les autres problèmes déjà publiés à Lyon sont conservés pour ne pas changer leurs URLs.
+Le registre des problèmes est dans le même catalogue. Les trois intentions nationales sont disponibles pour chaque commune : `fuite-eau`, `wc-bouche` et `canalisation-bouchee`. Elles sont séparées de `activeProblems`, qui conserve les overrides et pages historiques supplémentaires sans transformer artificiellement une commune en `full`.
 
 ## Publication
 
 Chaque commune possède un `seoStatus` :
 
 - `disabled` : aucune route indexable ni entrée sitemap ;
-- `hub` : hub national uniquement, rendu à la demande ;
-- `full` : hub et problèmes listés dans `activeProblems`.
+- `hub` : hub et problèmes nationaux, rendus à la demande ;
+- `full` : hub, problèmes nationaux et problèmes listés dans `activeProblems`.
 
-L’import national active explicitement tous les `COM` en `hub` et préserve les sept `full`. Les problèmes restent toujours opt-in : une commune `hub` ne génère aucune page problème.
+L’import national active explicitement tous les `COM` en `hub` et préserve les sept `full`. Les trois problèmes nationaux sont une règle de couverture séparée ; les autres problèmes restent opt-in via `activeProblems`.
 
 ## Homonymes
 
@@ -46,9 +46,15 @@ Les tests `tests/local-seo-engine.test.js` vérifient l’inventaire publié, le
 
 ## Sitemap et performance
 
-`app/sitemap.xml/route.ts` expose un index XML compatible avec `/sitemap.xml`. Il référence `general.xml`, les lots `local-hubs-*.xml` et `local-problems-*.xml`, servis par `app/sitemaps/[segment]/route.ts`. Chaque lot reste sous la limite prudente de 45 000 URLs. Les 34 875 hubs sont dans un lot et les 28 problèmes historiques dans un autre.
+`app/sitemap.xml/route.ts` expose un index XML compatible avec `/sitemap.xml`. Il référence `general.xml`, les lots `local-hubs-*.xml` et `local-problems-*.xml`, servis par des routes XML dédiées. Chaque lot reste sous la limite prudente de 45 000 URLs. Les 34 875 hubs sont dans un lot ; les 104 634 URLs problème dédupliquées sont réparties en 45 000, 45 000 et 14 634 URLs.
 
-Le moteur pré-rend seulement les sept communes `full` et leurs 28 problèmes historiques. Les autres hubs utilisent le rendu dynamique/ISR à la demande (`revalidate: 3600`) : ils ne sont pas envoyés dans `generateStaticParams`. Le runtime utilise des maps `urlSlug → commune` ; le catalogue compact publié fait environ 21 MB côté serveur et n’est jamais envoyé au navigateur comme payload de catalogue. Le rapport d’import est écrit dans `data/insee/cog-2026/import-report.json`.
+Le moteur pré-rend seulement les sept communes `full` et leurs 28 problèmes historiques. Les problèmes nationaux sont contrôlés par `app/data/france/rollout.ts` et sont en `WAVE_0` par défaut : aucun problème national nouveau n’est ainsi accessible ou ajouté au sitemap. `TEST_WAVE` active localement Paris, Marseille, Toulouse, Bordeaux, Lille, Nantes, Montpellier et Strasbourg ; `ALL` active les 34 875 communes. Les autres hubs et problèmes nationaux utilisent le rendu dynamique/ISR à la demande (`revalidate: 3600`) : les 104 625 combinaisons nationales ne sont pas envoyées dans `generateStaticParams`. Le runtime utilise des maps `urlSlug → commune` ; le catalogue compact publié reste côté serveur et n’est jamais envoyé au navigateur comme payload de catalogue. Le rapport d’import est écrit dans `data/insee/cog-2026/import-report.json`.
+
+## Rollout des problèmes nationaux
+
+Le mode est sélectionné par `NALVIUM_PROBLEM_ROLLOUT` côté serveur. Toute valeur absente ou inconnue retombe explicitement sur `WAVE_0`. Pour une validation locale, lancer le serveur avec `NALVIUM_PROBLEM_ROLLOUT=TEST_WAVE npm run dev`, puis revenir à `npm run dev` pour WAVE_0. `ALL` est réservé à une validation locale contrôlée et ne doit pas être configuré dans la production sans décision explicite.
+
+Les URLs historiques restent autorisées dans tous les modes. Le sitemap appelle la même résolution que le routage, ce qui empêche une URL inactive d’être publiée dans le sitemap. Les tests de comptage sont dans `tests/problem-rollout.test.js` : WAVE_0 = 28 URLs problème, TEST_WAVE = 52, ALL = 104 634.
 
 ## Source communes France
 

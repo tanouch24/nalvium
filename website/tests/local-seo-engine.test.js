@@ -11,6 +11,7 @@ assert.strictEqual(new Set(cities.map(city => city.inseeCode)).size, cities.leng
 assert.strictEqual(new Set(cities.map(city => city.urlSlug)).size, cities.length, 'City URL slugs must be unique');
 assert(cities.every(city => /^(?:[0-9]{5}|2A[0-9]{3}|2B[0-9]{3})$/.test(city.inseeCode)), 'Every city must have a valid COG INSEE code');
 assert(cities.every(city => statuses.has(city.seoStatus)), 'Every city must have an explicit SEO status');
+assert(cities.every(city => Array.isArray(city.nationalProblems) && city.nationalProblems.length === 3 && city.nationalProblems.includes('fuite-eau') && city.nationalProblems.includes('wc-bouche') && city.nationalProblems.includes('canalisation-bouchee')), 'Every commune must expose the three national problem intents');
 assert(cities.every(city => city.professionalClaims === false), 'The catalog must not contain professional claims');
 assert(cities.every(city => city.localClaims.length === 0), 'The catalog must not contain unverified local claims');
 assert(cities.every(city => Array.isArray(city.neighborInseeCodes)), 'Neighbour relations must be explicit arrays');
@@ -45,13 +46,15 @@ assert(catalog.source?.cogVintage === '2026', 'Catalog must identify the COG 202
 assert(catalog.importStats?.communeRows === cities.length, 'Import stats must match the candidate catalogue');
 
 const publishedCities = cities.filter(city => city.seoStatus !== 'disabled');
-const publishedProblems = cities.filter(city => city.seoStatus === 'full').flatMap(city => city.activeProblems.map(problem => `${city.urlSlug}/${problem}`));
+const publishedProblems = cities.filter(city => city.seoStatus !== 'disabled').flatMap(city => [...new Set([...city.nationalProblems, ...city.activeProblems])].map(problem => `${city.urlSlug}/${problem}`));
+const nationalProblemUrls = cities.map(city => city.urlSlug).flatMap(city => ['fuite-eau', 'wc-bouche', 'canalisation-bouchee'].map(problem => `${city}/${problem}`));
 assert.strictEqual(cities.filter(city => city.seoStatus === 'full').length, 7, 'Exactly the historical seven cities must remain full');
 assert.strictEqual(cities.filter(city => city.seoStatus === 'hub').length, 34868, 'All other COG candidates must be hub-only');
 assert.strictEqual(cities.filter(city => city.seoStatus === 'disabled').length, 0, 'No COG candidate should remain disabled after national hub activation');
 assert.strictEqual(publishedCities.length, 34875, 'Every COG candidate must publish a hub');
-assert.strictEqual(publishedProblems.length, 28, 'Published local problem pages must be explicit');
-assert.strictEqual(publishedCities.length + publishedProblems.length, 34903, 'National local inventory must contain every hub plus the 28 historical problem pages');
+assert.strictEqual(new Set(nationalProblemUrls).size, 104625, 'The three national problems must cover every commune exactly once');
+assert.strictEqual(publishedProblems.length, 104634, 'Published local problem pages must include national and additional historical intents');
+assert.strictEqual(publishedCities.length + publishedProblems.length, 139509, 'National local inventory must contain every hub and deduplicated problem URL');
 
 const collisionFixture = [
   { slug: 'saint-priest', departmentCode: '69', urlSlug: 'saint-priest' },

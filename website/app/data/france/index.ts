@@ -1,5 +1,6 @@
 import rawCatalog from './published-catalog.json';
 import { assertLocalPageQuality, validateFranceSeoCatalog } from './quality-gate';
+import { isNationalProblemEnabled, NATIONAL_PROBLEM_SLUGS, problemRolloutFromEnvironment, type ProblemRollout } from './rollout';
 
 export type SeoPublicationStatus = 'disabled' | 'hub' | 'full';
 export type FranceProblemRecord = (typeof rawCatalog.problems)[number];
@@ -17,12 +18,14 @@ const problemsBySlug = new Map(franceProblems.map(problem => [problem.slug, prob
 export function getFranceCity(urlSlug: string): FranceCityRecord | undefined { return citiesByUrlSlug.get(urlSlug); }
 export function getFranceProblem(slug: string): FranceProblemRecord | undefined { return problemsBySlug.get(slug); }
 export function isPublishedCity(urlSlug: string): boolean { const city = getFranceCity(urlSlug); return Boolean(city && city.seoStatus !== 'disabled'); }
-export function isPublishedProblem(citySlug: string, problemSlug: string): boolean { const city = getFranceCity(citySlug); return Boolean(city && city.seoStatus === 'full' && city.activeProblems.includes(problemSlug)); }
+export function isPublishedProblem(citySlug: string, problemSlug: string, mode: ProblemRollout = problemRolloutFromEnvironment()): boolean { const city = getFranceCity(citySlug); return Boolean(city && city.seoStatus !== 'disabled' && (city.activeProblems.includes(problemSlug) || (NATIONAL_PROBLEM_SLUGS.includes(problemSlug as typeof NATIONAL_PROBLEM_SLUGS[number]) && city.nationalProblems.includes(problemSlug) && isNationalProblemEnabled(city.inseeCode, mode)))); }
 export function publishedCitySlugs(): string[] { return franceCities.filter(city => city.seoStatus !== 'disabled').map(city => city.urlSlug); }
 export function preRenderedCitySlugs(): string[] { return franceCities.filter(city => city.seoStatus === 'full').map(city => city.urlSlug); }
-export function publishedLocalProblemParams(): { city: string; problem: string }[] { return franceCities.filter(city => city.seoStatus === 'full').flatMap(city => city.activeProblems.map(problem => ({ city: city.urlSlug, problem }))); }
+export function localProblemSlugs(city: FranceCityRecord, mode: ProblemRollout = problemRolloutFromEnvironment()): string[] { const national = isNationalProblemEnabled(city.inseeCode, mode) ? city.nationalProblems : []; return Array.from(new Set([...national, ...city.activeProblems])); }
+export function preRenderedLocalProblemParams(): { city: string; problem: string }[] { return franceCities.filter(city => city.seoStatus === 'full').flatMap(city => city.activeProblems.map(problem => ({ city: city.urlSlug, problem }))); }
+export function publishedLocalProblemParams(mode: ProblemRollout = problemRolloutFromEnvironment()): { city: string; problem: string }[] { return franceCities.filter(city => city.seoStatus !== 'disabled').flatMap(city => localProblemSlugs(city, mode).map(problem => ({ city: city.urlSlug, problem }))); }
 export function publishedLocalHubPaths(): string[] { return publishedCitySlugs().map(city => `/plombier/${city}`); }
-export function publishedLocalProblemPaths(): string[] { return publishedLocalProblemParams().map(({ city, problem }) => `/plombier/${city}/${problem}`); }
+export function publishedLocalProblemPaths(mode: ProblemRollout = problemRolloutFromEnvironment()): string[] { return publishedLocalProblemParams(mode).map(({ city, problem }) => `/plombier/${city}/${problem}`); }
 export function cityUrlSlug(city: FranceCityRecord): string { return city.urlSlug; }
 
 export { assertLocalPageQuality };

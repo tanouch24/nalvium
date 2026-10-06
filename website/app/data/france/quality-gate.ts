@@ -7,6 +7,7 @@ type FranceCityRecord = {
   regionCode: string;
   sourceUrl: string;
   seoStatus: string;
+  nationalProblems: string[];
   activeProblems: string[];
   professionalClaims: boolean;
   localClaims: string[];
@@ -41,12 +42,13 @@ export function validateFranceSeoCatalog(cities: FranceCityRecord[], problems: F
     inseeCodes.add(city.inseeCode);
     if (!city.slug || !city.urlSlug || !city.name || !city.departmentCode || !city.regionCode || !city.sourceUrl) errors.push(`Incomplete city record: ${city.inseeCode}`);
     if (!statuses.has(city.seoStatus)) errors.push(`Invalid SEO status for ${city.inseeCode}: ${city.seoStatus}`);
+    if (city.nationalProblems.length !== 3 || !city.nationalProblems.includes('fuite-eau') || !city.nationalProblems.includes('wc-bouche') || !city.nationalProblems.includes('canalisation-bouchee')) errors.push(`National problem coverage is incomplete: ${city.inseeCode}`);
     if (city.seoStatus === 'disabled' && city.activeProblems.length > 0) errors.push(`Disabled city has active problems: ${city.inseeCode}`);
     if (city.seoStatus === 'hub' && city.activeProblems.length > 0) errors.push(`Hub-only city has active problem pages: ${city.inseeCode}`);
     if (city.seoStatus === 'full' && city.activeProblems.length === 0) errors.push(`Full city has no active problems: ${city.inseeCode}`);
     if (city.professionalClaims !== false) errors.push(`Professional claims must be false: ${city.inseeCode}`);
     if (city.localClaims.length > 0) errors.push(`Unverified local claims found: ${city.inseeCode}`);
-    for (const problemSlug of city.activeProblems) if (!problemSlugs.has(problemSlug)) errors.push(`Unknown active problem ${problemSlug} on ${city.inseeCode}`);
+    for (const problemSlug of [...city.nationalProblems, ...city.activeProblems]) if (!problemSlugs.has(problemSlug)) errors.push(`Unknown active problem ${problemSlug} on ${city.inseeCode}`);
     const sameSlug = urlSlugs.get(city.slug) ?? [];
     sameSlug.push(city);
     urlSlugs.set(city.slug, sameSlug);
@@ -77,7 +79,7 @@ export function validateFranceSeoCatalog(cities: FranceCityRecord[], problems: F
 export function assertLocalPageQuality(input: { city: FranceCityRecord; problem?: FranceProblemRecord; title: string; description: string; h1: string; canonical: string; hasSafety: boolean; hasCta: boolean; usefulLinks: number; hasFalseProfessionalData: boolean }): void {
   const errors = [
     input.city.seoStatus === 'disabled' ? 'city is disabled' : '',
-    input.problem && !input.city.activeProblems.includes(input.problem.slug) ? 'problem is not activated for city' : '',
+    input.problem && !input.city.activeProblems.includes(input.problem.slug) && !input.city.nationalProblems.includes(input.problem.slug) ? 'problem is not activated for city' : '',
     input.title.length < 20 ? 'title is too short' : '',
     input.description.length < 60 ? 'description is too short' : '',
     input.h1.length < 10 ? 'H1 is too short' : '',
