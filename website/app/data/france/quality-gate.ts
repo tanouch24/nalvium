@@ -12,6 +12,7 @@ type FranceCityRecord = {
   professionalClaims: boolean;
   localClaims: string[];
   neighborInseeCodes: string[];
+  population?: { value: number; rank?: number; referenceYear: number; source: string };
 };
 
 type FranceProblemRecord = {
@@ -48,6 +49,8 @@ export function validateFranceSeoCatalog(cities: FranceCityRecord[], problems: F
     if (city.seoStatus === 'full' && city.activeProblems.length === 0) errors.push(`Full city has no active problems: ${city.inseeCode}`);
     if (city.professionalClaims !== false) errors.push(`Professional claims must be false: ${city.inseeCode}`);
     if (city.localClaims.length > 0) errors.push(`Unverified local claims found: ${city.inseeCode}`);
+    const population = city.population;
+    if (!population || !Number.isInteger(population.value) || population.value < 0 || !Number.isInteger(population.rank) || (population.rank ?? 0) < 1 || !population.source) errors.push(`Invalid official population metadata: ${city.inseeCode}`);
     for (const problemSlug of [...city.nationalProblems, ...city.activeProblems]) if (!problemSlugs.has(problemSlug)) errors.push(`Unknown active problem ${problemSlug} on ${city.inseeCode}`);
     const sameSlug = urlSlugs.get(city.slug) ?? [];
     sameSlug.push(city);

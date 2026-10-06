@@ -13,8 +13,8 @@ export const localEditorialOverrides: Record<string, { hub: LocalEditorialOverri
   franceCities.filter(city => city.seoStatus !== 'disabled').map(city => [
     city.urlSlug,
     {
-      hub: { source: city.editorialSource },
-      problems: Object.fromEntries(city.activeProblems.map(problem => [problem, { source: city.editorialSource }])),
+      hub: { source: city.editorialSource ?? city.sourceUrl },
+      problems: Object.fromEntries(city.activeProblems.map(problem => [problem, { source: city.editorialSource ?? city.sourceUrl }])),
     },
   ]),
 );

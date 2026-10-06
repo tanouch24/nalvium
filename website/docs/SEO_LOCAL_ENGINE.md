@@ -52,7 +52,17 @@ Le moteur pré-rend seulement les sept communes `full` et leurs 28 problèmes hi
 
 ## Rollout des problèmes nationaux
 
-Le mode est sélectionné par `NALVIUM_PROBLEM_ROLLOUT` côté serveur. Toute valeur absente ou inconnue retombe explicitement sur `WAVE_0`. Pour une validation locale, lancer le serveur avec `NALVIUM_PROBLEM_ROLLOUT=TEST_WAVE npm run dev`, puis revenir à `npm run dev` pour WAVE_0. `ALL` est réservé à une validation locale contrôlée et ne doit pas être configuré dans la production sans décision explicite.
+Le mode est sélectionné par `NALVIUM_PROBLEM_ROLLOUT` côté serveur. Une valeur absente signifie `WAVE_0`; une valeur inconnue provoque une erreur explicite et ne peut pas basculer silencieusement vers `ALL`. `TEST_WAVE` est réservé au développement. Les vagues population disponibles sont `WAVE_100`, `WAVE_500`, `WAVE_1000`, `WAVE_2500`, `WAVE_5000`, `WAVE_10000` et `ALL`. La production doit rester sur `WAVE_0` tant qu'une activation n'a pas été décidée.
+
+## Population INSEE et vagues nationales
+
+Le catalogue géographique utilise le COG INSEE 2026. Le classement interne utilise les populations de référence INSEE 2023, applicables au 1er janvier 2026. La source principale est le fichier `ensemble.zip / donnees_communes.csv` de la publication INSEE [Populations de référence 2023](https://www.insee.fr/fr/statistiques/8681011), téléchargée depuis la page officielle des fichiers [popref 2023](https://www.insee.fr/fr/statistiques/8680726). La jointure est exclusivement faite par `inseeCode`/`COM`.
+
+Le COG contient 34 875 communes candidates. Le fichier principal contient 34 900 lignes : Paris, Marseille et Lyon sont représentées par des lignes d'arrondissements distinctes dans ce fichier, et les 17 communes de Mayotte sont absentes. Les 20 codes manquants sont complétés par des sources INSEE officielles explicites dans `data/insee/population-2023/communes-speciales.csv`. Mayotte conserve la population de référence 2017 publiée par l'INSEE ([source Mayotte](https://www.insee.fr/fr/statistiques/3291775)); elle n'est pas présentée comme une population 2023.
+
+L'import reproductible est `node scripts/import-insee-population.mjs`. Il enrichit `data/france/catalog.json` et `app/data/france/published-catalog.json`, écrit `data/insee/population-2023/import-report.json` et `data/insee/population-2023/national-ranking.json`, et échoue si une commune COG reste sans population officielle ou si un code population est dupliqué. Pour un futur millésime, remplacer les fichiers source, mettre à jour les métadonnées de provenance et relancer ce script ; ne jamais joindre par nom.
+
+Les vagues sont des préfixes du classement : `WAVE_100`, `WAVE_500`, `WAVE_1000`, `WAVE_2500`, `WAVE_5000`, `WAVE_10000`, puis `ALL`. Les sept communes historiques et leurs 28 URLs problème restent accessibles dans toutes les vagues. La population n'est pas affichée sur les pages publiques et le catalogue reste côté serveur.
 
 Les URLs historiques restent autorisées dans tous les modes. Le sitemap appelle la même résolution que le routage, ce qui empêche une URL inactive d’être publiée dans le sitemap. Les tests de comptage sont dans `tests/problem-rollout.test.js` : WAVE_0 = 28 URLs problème, TEST_WAVE = 52, ALL = 104 634.
 
