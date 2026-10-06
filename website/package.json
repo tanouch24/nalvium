@@ -6,9 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint": "eslint app scripts tests --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit --incremental false",
-    "test": "node tests/content.test.js"
+    "test": "node tests/content.test.js && node tests/local-seo-engine.test.js"
   },
   "dependencies": {
     "next": "^15.5.24",

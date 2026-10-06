@@ -1,0 +1,373 @@
+{
+  "source": {
+    "provider": "INSEE",
+    "page": "https://www.insee.fr/fr/information/8740222",
+    "dataset": "Code officiel géographique au 1er janvier 2026",
+    "cogVintage": "2026",
+    "communeFile": "v_commune_2026.csv",
+    "departmentFile": "v_departement_2026.csv",
+    "regionFile": "v_region_2026.csv",
+    "importedAt": "2026-10-06T12:03:11.779Z",
+    "populationImported": false
+  },
+  "importStats": {
+    "sourceRows": 37496,
+    "communeRows": 34875,
+    "typeCounts": {
+      "COM": 34875,
+      "COMD": 2105,
+      "COMA": 471,
+      "ARM": 45
+    },
+    "collisionCount": 1568,
+    "ignoredTypes": {
+      "COMD": 2105,
+      "COMA": 471,
+      "ARM": 45
+    }
+  },
+  "cities": [
+    {
+      "inseeCode": "06088",
+      "name": "Nice",
+      "displayName": "Nice",
+      "slug": "nice",
+      "urlSlug": "nice",
+      "departmentCode": "06",
+      "departmentName": "Alpes-Maritimes",
+      "regionCode": "93",
+      "regionName": "Provence-Alpes-Côte d'Azur",
+      "typecom": "COM",
+      "seoStatus": "full",
+      "activeProblems": [
+        "fuite-eau",
+        "evier-bouche",
+        "chasse-eau"
+      ],
+      "neighborInseeCodes": [],
+      "relatedCityInseeCodes": [],
+      "sourceUrl": "https://www.insee.fr/fr/metadonnees/geographie/commune/06088-nice",
+      "editorialSource": "legacy-nice",
+      "localClaims": [],
+      "professionalClaims": false
+    },
+    {
+      "inseeCode": "69029",
+      "name": "Bron",
+      "displayName": "Bron",
+      "slug": "bron",
+      "urlSlug": "bron",
+      "departmentCode": "69",
+      "departmentName": "Rhône",
+      "regionCode": "84",
+      "regionName": "Auvergne-Rhône-Alpes",
+      "typecom": "COM",
+      "seoStatus": "full",
+      "activeProblems": [
+        "fuite-eau",
+        "wc-bouche",
+        "canalisation-bouchee"
+      ],
+      "neighborInseeCodes": [
+        "69123",
+        "69266"
+      ],
+      "relatedCityInseeCodes": [
+        "69123",
+        "69266"
+      ],
+      "sourceUrl": "https://www.insee.fr/fr/metadonnees/geographie/commune/69029-bron",
+      "editorialSource": "metro-data",
+      "localClaims": [],
+      "professionalClaims": false
+    },
+    {
+      "inseeCode": "69034",
+      "name": "Caluire-et-Cuire",
+      "displayName": "Caluire-et-Cuire",
+      "slug": "caluire-et-cuire",
+      "urlSlug": "caluire-et-cuire",
+      "departmentCode": "69",
+      "departmentName": "Rhône",
+      "regionCode": "84",
+      "regionName": "Auvergne-Rhône-Alpes",
+      "typecom": "COM",
+      "seoStatus": "full",
+      "activeProblems": [
+        "fuite-eau",
+        "wc-bouche",
+        "canalisation-bouchee"
+      ],
+      "neighborInseeCodes": [
+        "69123",
+        "69266"
+      ],
+      "relatedCityInseeCodes": [
+        "69123",
+        "69266"
+      ],
+      "sourceUrl": "https://www.insee.fr/fr/metadonnees/geographie/commune/69034-caluire-et-cuire",
+      "editorialSource": "metro-data",
+      "localClaims": [],
+      "professionalClaims": false
+    },
+    {
+      "inseeCode": "69123",
+      "name": "Lyon",
+      "displayName": "Lyon",
+      "slug": "lyon",
+      "urlSlug": "lyon",
+      "departmentCode": "69",
+      "departmentName": "Rhône",
+      "regionCode": "84",
+      "regionName": "Auvergne-Rhône-Alpes",
+      "typecom": "COM",
+      "seoStatus": "full",
+      "activeProblems": [
+        "fuite-eau",
+        "recherche-fuite",
+        "wc-bouche",
+        "evier-bouche",
+        "canalisation-bouchee",
+        "chasse-eau",
+        "robinet-qui-fuit",
+        "chauffe-eau",
+        "ballon-eau-chaude",
+        "degat-des-eaux"
+      ],
+      "neighborInseeCodes": [
+        "69266",
+        "69029",
+        "69259",
+        "69290",
+        "69034"
+      ],
+      "relatedCityInseeCodes": [
+        "69266",
+        "69029",
+        "69259",
+        "69290",
+        "69034"
+      ],
+      "sourceUrl": "https://www.insee.fr/fr/metadonnees/geographie/commune/69123-lyon",
+      "editorialSource": "legacy-lyon",
+      "localClaims": [],
+      "professionalClaims": false
+    },
+    {
+      "inseeCode": "69259",
+      "name": "Vénissieux",
+      "displayName": "Vénissieux",
+      "slug": "venissieux",
+      "urlSlug": "venissieux",
+      "departmentCode": "69",
+      "departmentName": "Rhône",
+      "regionCode": "84",
+      "regionName": "Auvergne-Rhône-Alpes",
+      "typecom": "COM",
+      "seoStatus": "full",
+      "activeProblems": [
+        "fuite-eau",
+        "wc-bouche",
+        "canalisation-bouchee"
+      ],
+      "neighborInseeCodes": [
+        "69123",
+        "69290"
+      ],
+      "relatedCityInseeCodes": [
+        "69123",
+        "69290"
+      ],
+      "sourceUrl": "https://www.insee.fr/fr/metadonnees/geographie/commune/69259-venissieux",
+      "editorialSource": "metro-data",
+      "localClaims": [],
+      "professionalClaims": false
+    },
+    {
+      "inseeCode": "69266",
+      "name": "Villeurbanne",
+      "displayName": "Villeurbanne",
+      "slug": "villeurbanne",
+      "urlSlug": "villeurbanne",
+      "departmentCode": "69",
+      "departmentName": "Rhône",
+      "regionCode": "84",
+      "regionName": "Auvergne-Rhône-Alpes",
+      "typecom": "COM",
+      "seoStatus": "full",
+      "activeProblems": [
+        "fuite-eau",
+        "wc-bouche",
+        "canalisation-bouchee"
+      ],
+      "neighborInseeCodes": [
+        "69123",
+        "69029"
+      ],
+      "relatedCityInseeCodes": [
+        "69123",
+        "69029"
+      ],
+      "sourceUrl": "https://www.insee.fr/fr/metadonnees/geographie/commune/69266-villeurbanne",
+      "editorialSource": "metro-data",
+      "localClaims": [],
+      "professionalClaims": false
+    },
+    {
+      "inseeCode": "69290",
+      "name": "Saint-Priest",
+      "displayName": "Saint-Priest",
+      "slug": "saint-priest",
+      "urlSlug": "saint-priest",
+      "departmentCode": "69",
+      "departmentName": "Rhône",
+      "regionCode": "84",
+      "regionName": "Auvergne-Rhône-Alpes",
+      "typecom": "COM",
+      "seoStatus": "full",
+      "activeProblems": [
+        "fuite-eau",
+        "wc-bouche",
+        "canalisation-bouchee"
+      ],
+      "neighborInseeCodes": [
+        "69123",
+        "69259"
+      ],
+      "relatedCityInseeCodes": [
+        "69123",
+        "69259"
+      ],
+      "sourceUrl": "https://www.insee.fr/fr/metadonnees/geographie/commune/69290-saint-priest",
+      "editorialSource": "metro-data",
+      "localClaims": [],
+      "professionalClaims": false
+    }
+  ],
+  "problems": [
+    {
+      "slug": "fuite-eau",
+      "intent": "fuite d’eau locale",
+      "label": "Fuite d’eau",
+      "nationalGuideSlugs": [
+        "fuite-sous-evier",
+        "fuite-sous-lavabo",
+        "robinet-qui-goutte",
+        "chauffe-eau-fuit"
+      ],
+      "safetyProfile": "plomberie-standard",
+      "metadataKey": "local-fuite-eau"
+    },
+    {
+      "slug": "recherche-fuite",
+      "intent": "origine d’une fuite non localisée",
+      "label": "Recherche de fuite",
+      "nationalGuideSlugs": [
+        "fuite-sous-evier",
+        "fuite-sous-lavabo",
+        "mauvaise-odeur-canalisation"
+      ],
+      "safetyProfile": "plomberie-standard",
+      "metadataKey": "local-recherche-fuite"
+    },
+    {
+      "slug": "wc-bouche",
+      "intent": "WC bouché",
+      "label": "WC bouché",
+      "nationalGuideSlugs": [
+        "wc-qui-remonte",
+        "wc-se-vide-lentement",
+        "canalisation-qui-glougloute",
+        "chasse-eau-qui-coule"
+      ],
+      "safetyProfile": "plomberie-evacuation",
+      "metadataKey": "local-wc-bouche"
+    },
+    {
+      "slug": "evier-bouche",
+      "intent": "évier bouché",
+      "label": "Évier bouché",
+      "nationalGuideSlugs": [
+        "evier-bouche",
+        "evier-se-vide-lentement",
+        "canalisation-qui-glougloute"
+      ],
+      "safetyProfile": "plomberie-evacuation",
+      "metadataKey": "local-evier-bouche"
+    },
+    {
+      "slug": "canalisation-bouchee",
+      "intent": "canalisation bouchée",
+      "label": "Canalisation bouchée",
+      "nationalGuideSlugs": [
+        "canalisation-qui-glougloute",
+        "mauvaise-odeur-canalisation",
+        "wc-qui-remonte",
+        "douche-se-vide-lentement",
+        "lavabo-se-vide-lentement"
+      ],
+      "safetyProfile": "plomberie-evacuation",
+      "metadataKey": "local-canalisation-bouchee"
+    },
+    {
+      "slug": "chasse-eau",
+      "intent": "chasse d’eau qui coule",
+      "label": "Chasse d’eau",
+      "nationalGuideSlugs": [
+        "chasse-eau-qui-coule",
+        "wc-qui-remonte"
+      ],
+      "safetyProfile": "plomberie-standard",
+      "metadataKey": "local-chasse-eau"
+    },
+    {
+      "slug": "robinet-qui-fuit",
+      "intent": "robinet qui fuit",
+      "label": "Robinet qui fuit",
+      "nationalGuideSlugs": [
+        "robinet-qui-goutte",
+        "robinet-qui-fuit-a-la-base",
+        "fuite-sous-evier"
+      ],
+      "safetyProfile": "plomberie-standard",
+      "metadataKey": "local-robinet-qui-fuit"
+    },
+    {
+      "slug": "chauffe-eau",
+      "intent": "problème de chauffe-eau",
+      "label": "Chauffe-eau",
+      "nationalGuideSlugs": [
+        "chauffe-eau-ne-chauffe-plus",
+        "chauffe-eau-fuit",
+        "groupe-securite-chauffe-eau-qui-coule"
+      ],
+      "safetyProfile": "eau-electricite-gaz",
+      "metadataKey": "local-chauffe-eau"
+    },
+    {
+      "slug": "ballon-eau-chaude",
+      "intent": "problème de ballon d’eau chaude",
+      "label": "Ballon d’eau chaude",
+      "nationalGuideSlugs": [
+        "chauffe-eau-ne-chauffe-plus",
+        "chauffe-eau-fuit",
+        "groupe-securite-chauffe-eau-qui-coule"
+      ],
+      "safetyProfile": "eau-electricite-gaz",
+      "metadataKey": "local-ballon-eau-chaude"
+    },
+    {
+      "slug": "degat-des-eaux",
+      "intent": "dégât des eaux",
+      "label": "Dégât des eaux",
+      "nationalGuideSlugs": [
+        "recherche-fuite",
+        "fuite-sous-lavabo",
+        "chauffe-eau-fuit"
+      ],
+      "safetyProfile": "plomberie-risque",
+      "metadataKey": "local-degat-des-eaux"
+    }
+  ]
+}

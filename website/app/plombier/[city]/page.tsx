@@ -3,12 +3,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs, ButtonLink, CameraScene, FAQ, PageHero, PhotoProblemCard, SafetyStop, SectionHeader, SiteCta } from '../../components';
 import { cities, photoAssets } from '../../data';
+import { assertLocalPageQuality, getFranceCity, publishedCitySlugs } from '../../data/france';
 import { metroCities, metroProblems, type MetroCity } from '../../metropole-data';
 
-export function generateStaticParams() { return [...Object.keys(cities), ...Object.keys(metroCities)].map(city => ({ city })); }
+export function generateStaticParams() { return publishedCitySlugs().map(city => ({ city })); }
 
 export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
   const { city } = await params;
+  const franceCity = getFranceCity(city);
+  if (!franceCity) notFound();
   const metro = metroCities[city];
   const c = cities[city as keyof typeof cities];
   if (metro) { const url = `https://nalvium.com/plombier/${metro.slug}`; return { title: `Plombier à ${metro.name} ? Comprendre le problème d’abord | NALVIUM`, description: `${metro.name} : observez une fuite, un WC bouché ou une canalisation avant de décider si un plombier doit intervenir.`, alternates: { canonical: url }, openGraph: { title: `Plombier à ${metro.name} ? Comprendre le problème d’abord | NALVIUM`, description: metro.localContext, url, type: 'website' } }; }
@@ -65,7 +68,10 @@ const legacyCityProblemCards: Record<string, { title: string; slug: string; imag
 };
 
 function MetroHub({ city }: { city: MetroCity }) {
+  const registryCity = getFranceCity(city.slug);
+  if (!registryCity) notFound();
   const cards = metroProblemCards.map(card => ({ ...card, content: metroProblems[card.slug] }));
+  assertLocalPageQuality({ city: registryCity, title: `Plombier à ${city.name} ? Comprendre le problème d’abord | NALVIUM`, description: city.localContext, h1: `Un problème de plomberie à ${city.name} ? Comprenez d’abord ce qui se passe.`, canonical: `https://nalvium.com/plombier/${city.slug}`, hasSafety: true, hasCta: true, usefulLinks: cards.length, hasFalseProfessionalData: false });
   const faq = [
     { question: `NALVIUM intervient-il comme plombier à ${city.name} ?`, answer: `Non. NALVIUM est un service numérique gratuit qui aide à observer le problème, envisager des causes possibles et savoir quand demander un professionnel. ${city.faqAnswer}` },
     { question: `Que vérifier avant d’appeler un plombier à ${city.name} ?`, answer: `Notez l’équipement concerné, l’origine visible de l’eau, le moment d’apparition et les autres équipements touchés. Ne démontez pas et arrêtez-vous si l’eau approche l’électricité ou si le risque augmente.` },
@@ -77,7 +83,10 @@ function MetroHub({ city }: { city: MetroCity }) {
 }
 
 function LegacyCityHub({ citySlug, city }: { citySlug: string; city: typeof cities[keyof typeof cities] }) {
+  const registryCity = getFranceCity(citySlug);
+  if (!registryCity) notFound();
   const cards = legacyCityProblemCards[citySlug] ?? [];
+  assertLocalPageQuality({ city: registryCity, title: `Plombier à ${city.name} : identifier le problème avant d’appeler`, description: city.intro, h1: `Besoin d’un plombier à ${city.name} ? Commencez par montrer le problème.`, canonical: `https://nalvium.com/plombier/${citySlug}`, hasSafety: true, hasCta: true, usefulLinks: cards.length, hasFalseProfessionalData: false });
   return <main><Breadcrumbs items={[{ label: 'Plombier', href: '/professionnels' }, { label: city.name }]} /><section className="local-hero-v5"><PageHero eyebrow={`NALVIUM · ${city.name.toUpperCase()}`} title={`Besoin d’un plombier à ${city.name} ? Commencez par montrer le problème.`}><p>{city.intro}</p><ButtonLink href="/comment-ca-marche">Montrer mon problème</ButtonLink></PageHero><CameraScene compact /></section><section className="section-v5 local-situations"><SectionHeader eyebrow={`SITUATIONS À ${city.name.toUpperCase()}`} title="Commencez par le symptôme que vous voyez.">Choisissez une situation proche de ce que vous observez. NALVIUM aide à clarifier la suite sans se présenter comme un service de dépannage local.</SectionHeader><div className="local-photo-grid">{cards.map((card, index) => <PhotoProblemCard key={card.slug} title={card.title} href={`/plombier/${citySlug}/${card.slug}`} image={card.image} size={index === 0 ? 'is-featured' : ''} />)}</div></section><section className="section-v5 local-professional-note"><SectionHeader eyebrow="QUAND PASSER LA MAIN ?" title={`Vous avez besoin d’un professionnel à ${city.name} ?`}>Si l’eau est importante, si le risque augmente ou si l’origine reste incertaine, arrêtez-vous. NALVIUM aide à préparer une description plus claire, mais ne fournit ni intervention, ni disponibilité, ni tarif.</SectionHeader><ButtonLink href="/securite" secondary>Voir les règles de sécurité</ButtonLink></section><SiteCta title="Commencez par montrer votre problème à NALVIUM." /></main>;
 }
 
@@ -88,6 +97,9 @@ export default async function LocalPage({ params }: { params: Promise<{ city: st
   if (metro) return <MetroHub city={metro} />;
   if (!c) notFound();
   if (city !== 'lyon') return <LegacyCityHub citySlug={city} city={c} />;
+  const registryCity = getFranceCity(city);
+  if (!registryCity) notFound();
+  assertLocalPageQuality({ city: registryCity, title: 'Besoin d’un plombier à Lyon ? Identifiez d’abord le problème', description: 'Fuite, WC bouché, évier ou chauffe-eau à Lyon : NALVIUM vous aide gratuitement à observer le problème avant de décider de la suite.', h1: 'Un problème de plomberie à Lyon ? Comprenez d’abord ce qui se passe.', canonical: 'https://nalvium.com/plombier/lyon', hasSafety: true, hasCta: true, usefulLinks: lyonProblems.length, hasFalseProfessionalData: false });
   const faqJsonLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: lyonFaq.map(item => ({ '@type': 'Question', name: item.question, acceptedAnswer: { '@type': 'Answer', text: item.answer } })) };
   return <main>
     <Breadcrumbs items={[{ label: 'Plombier', href: '/professionnels' }, { label: 'Lyon' }]} />
