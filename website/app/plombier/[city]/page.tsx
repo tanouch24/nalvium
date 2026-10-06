@@ -3,12 +3,15 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Breadcrumbs, ButtonLink, CameraScene, FAQ, PageHero, PhotoProblemCard, SafetyStop, SectionHeader, SiteCta } from '../../components';
 import { cities, photoAssets } from '../../data';
+import { metroCities, metroProblems, type MetroCity } from '../../metropole-data';
 
-export function generateStaticParams() { return Object.keys(cities).map(city => ({ city })); }
+export function generateStaticParams() { return [...Object.keys(cities), ...Object.keys(metroCities)].map(city => ({ city })); }
 
 export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
   const { city } = await params;
+  const metro = metroCities[city];
   const c = cities[city as keyof typeof cities];
+  if (metro) { const url = `https://nalvium.com/plombier/${metro.slug}`; return { title: `Plombier à ${metro.name} ? Comprendre le problème d’abord | NALVIUM`, description: `${metro.name} : observez une fuite, un WC bouché ou une canalisation avant de décider si un plombier doit intervenir.`, alternates: { canonical: url }, openGraph: { title: `Plombier à ${metro.name} ? Comprendre le problème d’abord | NALVIUM`, description: metro.localContext, url, type: 'website' } }; }
   if (!c) return {};
   if (city === 'lyon') return { title: 'Besoin d’un plombier à Lyon ? Identifiez d’abord le problème', description: 'Fuite, WC bouché, évier ou chauffe-eau à Lyon : NALVIUM vous aide gratuitement à observer le problème avant de décider de la suite.', alternates: { canonical: 'https://nalvium.com/plombier/lyon' }, openGraph: { title: 'Besoin d’un plombier à Lyon ? Identifiez d’abord le problème | NALVIUM', description: 'Comprenez ce qui se passe chez vous avant de faire intervenir quelqu’un.', url: 'https://nalvium.com/plombier/lyon', type: 'website' } };
   return { title: `Plombier à ${c.name} : identifier le problème avant d’appeler`, description: `Vous cherchez un plombier à ${c.name} ? NALVIUM vous aide gratuitement à comprendre votre problème avant de décider de la suite.`, alternates: { canonical: `https://nalvium.com/plombier/${city}` } };
@@ -47,11 +50,44 @@ const lyonFaq = [
   { question: 'NALVIUM remplace-t-il un plombier ?', answer: 'Non. NALVIUM aide à montrer le problème, comprendre des causes probables et effectuer uniquement des vérifications sûres avant de décider si un professionnel est nécessaire.' },
 ];
 
+const metroProblemCards = [
+  { slug: 'fuite-eau', image: photoAssets.leakUnderSink },
+  { slug: 'wc-bouche', image: photoAssets.toilet },
+  { slug: 'canalisation-bouchee', image: photoAssets.cloggedSink },
+];
+const metroNeighbors: Record<string, string[]> = { villeurbanne: ['lyon', 'bron'], bron: ['lyon', 'villeurbanne'], venissieux: ['lyon', 'saint-priest'], 'saint-priest': ['lyon', 'venissieux'], 'caluire-et-cuire': ['lyon', 'villeurbanne'] };
+const legacyCityProblemCards: Record<string, { title: string; slug: string; image: { src: string; alt: string } }[]> = {
+  nice: [
+    { title: 'Fuite d’eau', slug: 'fuite-eau', image: photoAssets.leakUnderSink },
+    { title: 'Évier bouché', slug: 'evier-bouche', image: photoAssets.cloggedSink },
+    { title: 'Chasse d’eau qui coule', slug: 'chasse-eau', image: photoAssets.toilet },
+  ],
+};
+
+function MetroHub({ city }: { city: MetroCity }) {
+  const cards = metroProblemCards.map(card => ({ ...card, content: metroProblems[card.slug] }));
+  const faq = [
+    { question: `NALVIUM intervient-il comme plombier à ${city.name} ?`, answer: `Non. NALVIUM est un service numérique gratuit qui aide à observer le problème, envisager des causes possibles et savoir quand demander un professionnel. ${city.faqAnswer}` },
+    { question: `Que vérifier avant d’appeler un plombier à ${city.name} ?`, answer: `Notez l’équipement concerné, l’origine visible de l’eau, le moment d’apparition et les autres équipements touchés. Ne démontez pas et arrêtez-vous si l’eau approche l’électricité ou si le risque augmente.` },
+    { question: `Que faire en cas de problème de plomberie à ${city.name} ?`, answer: 'Commencez par limiter l’eau uniquement si une commande est identifiable et sûre, puis décrivez ce que vous voyez. Une fuite importante, un refoulement ou une installation électrique humide nécessitent de s’arrêter.' },
+  ];
+  const faqJsonLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map(item => ({ '@type': 'Question', name: item.question, acceptedAnswer: { '@type': 'Answer', text: item.answer } })) };
+  const articleJsonLd = { '@context': 'https://schema.org', '@type': 'Article', headline: `Un problème de plomberie à ${city.name} ? Comprenez d’abord ce qui se passe.`, description: city.localContext, mainEntityOfPage: `https://nalvium.com/plombier/${city.slug}`, publisher: { '@type': 'Organization', name: 'NALVIUM', url: 'https://nalvium.com' } };
+  return <main><Breadcrumbs items={[{ label: 'Plombier', href: '/professionnels' }, { label: city.name }]} /><section className="local-hero-v5"><PageHero eyebrow={`NALVIUM · ${city.name.toUpperCase()}`} title={<><span style={{ display: 'block' }}>Un problème de plomberie à {city.name} ?</span><span style={{ display: 'block' }}>Comprenez d’abord ce qui se passe.</span></>}><p>{city.localContext}</p><p>{city.housingContext}</p><ButtonLink href="/comment-ca-marche">Diagnostiquer gratuitement</ButtonLink></PageHero><CameraScene compact label="MONTREZ LA SITUATION" priority /></section><section className="section-v5 local-situations"><SectionHeader eyebrow={`PROBLÈMES FRÉQUENTS À ${city.name.toUpperCase()}`} title="Quel problème rencontrez-vous ?">Choisissez le symptôme qui ressemble le plus à ce que vous voyez. NALVIUM ne confirme pas une cause à distance : il vous aide à clarifier la prochaine observation.</SectionHeader><div className="local-photo-grid">{cards.map((card, index) => <PhotoProblemCard key={card.slug} title={card.content.label} href={`/plombier/${city.slug}/${card.slug}`} image={card.image} size={index === 0 ? 'is-featured' : ''} />)}</div></section><section className="section-v5"><SectionHeader eyebrow="AVANT D’APPELER UN PLOMBIER" title={`Les premières observations utiles à ${city.name}.`}>Dans un appartement, une maison ou un immeuble, commencez par ce qui est visible et accessible sans forcer.</SectionHeader><div className="outcome-grid"><div className="outcome"><span>01 · ORIGINE</span><h3>Où l’eau apparaît-elle ?</h3><p>{city.firstObservation}</p></div><div className="outcome"><span>02 · MOMENT</span><h3>Quand le signe arrive-t-il ?</h3><p>Notez s’il apparaît au repos, pendant l’utilisation, après une chasse ou quand plusieurs équipements sont sollicités.</p></div><div className="outcome"><span>03 · ÉTENDUE</span><h3>Quel autre équipement réagit ?</h3><p>Un seul point d’eau et plusieurs évacuations ne se trient pas de la même manière. Ne remplissez pas le réseau pour tester.</p></div></div></section><SafetyStop items={['Eau proche d’une prise, d’un tableau ou d’un appareil électrique alimenté', 'Fuite importante, refoulement ou eau potentiellement contaminée', 'Odeur de gaz, fumée, chaleur anormale ou risque structurel', 'Besoin de forcer, de démonter ou d’intervenir sous tension']} /><section className="section-v5"><SectionHeader eyebrow={`CONTEXTE LOCAL · ${city.name.toUpperCase()}`} title="Une commune, mais pas de diagnostic automatique.">{city.housingContext} La commune indique le parcours local ; elle ne permet pas de déduire l’âge d’une installation, la cause d’une fuite ou la disponibilité d’un professionnel.</SectionHeader><div className="local-problems">{metroNeighbors[city.slug].map(slug => <Link key={slug} href={slug === 'lyon' ? '/plombier/lyon' : `/plombier/${slug}`}>{slug === 'lyon' ? 'Parcours Lyon' : `Parcours ${metroCities[slug].name}`}<span>→</span></Link>)}</div></section><section className="section-v5"><SectionHeader eyebrow="QUESTIONS FRÉQUENTES" title={`Avant de décider de la suite à ${city.name}.`} /><FAQ items={faq} /></section><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify([articleJsonLd, faqJsonLd]) }} /><SiteCta title="Montrez le problème à NALVIUM." /></main>;
+}
+
+function LegacyCityHub({ citySlug, city }: { citySlug: string; city: typeof cities[keyof typeof cities] }) {
+  const cards = legacyCityProblemCards[citySlug] ?? [];
+  return <main><Breadcrumbs items={[{ label: 'Plombier', href: '/professionnels' }, { label: city.name }]} /><section className="local-hero-v5"><PageHero eyebrow={`NALVIUM · ${city.name.toUpperCase()}`} title={`Besoin d’un plombier à ${city.name} ? Commencez par montrer le problème.`}><p>{city.intro}</p><ButtonLink href="/comment-ca-marche">Montrer mon problème</ButtonLink></PageHero><CameraScene compact /></section><section className="section-v5 local-situations"><SectionHeader eyebrow={`SITUATIONS À ${city.name.toUpperCase()}`} title="Commencez par le symptôme que vous voyez.">Choisissez une situation proche de ce que vous observez. NALVIUM aide à clarifier la suite sans se présenter comme un service de dépannage local.</SectionHeader><div className="local-photo-grid">{cards.map((card, index) => <PhotoProblemCard key={card.slug} title={card.title} href={`/plombier/${citySlug}/${card.slug}`} image={card.image} size={index === 0 ? 'is-featured' : ''} />)}</div></section><section className="section-v5 local-professional-note"><SectionHeader eyebrow="QUAND PASSER LA MAIN ?" title={`Vous avez besoin d’un professionnel à ${city.name} ?`}>Si l’eau est importante, si le risque augmente ou si l’origine reste incertaine, arrêtez-vous. NALVIUM aide à préparer une description plus claire, mais ne fournit ni intervention, ni disponibilité, ni tarif.</SectionHeader><ButtonLink href="/securite" secondary>Voir les règles de sécurité</ButtonLink></section><SiteCta title="Commencez par montrer votre problème à NALVIUM." /></main>;
+}
+
 export default async function LocalPage({ params }: { params: Promise<{ city: string }> }) {
   const { city } = await params;
+  const metro = metroCities[city];
   const c = cities[city as keyof typeof cities];
+  if (metro) return <MetroHub city={metro} />;
   if (!c) notFound();
-  if (city !== 'lyon') return <main><Breadcrumbs items={[{ label: 'Plombier', href: '/professionnels' }, { label: c.name }]} /><section className="local-hero-v5"><PageHero eyebrow={`VOUS AVEZ CHERCHÉ UN PLOMBIER À ${c.name.toUpperCase()}`} title={`Besoin d’un plombier à ${c.name} ? Commencez par montrer le problème.`}><p>{c.intro}</p><ButtonLink href="/comment-ca-marche">Montrer mon problème</ButtonLink></PageHero><CameraScene compact /></section><SiteCta title="Commencez par montrer votre problème à NALVIUM." /></main>;
+  if (city !== 'lyon') return <LegacyCityHub citySlug={city} city={c} />;
   const faqJsonLd = { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: lyonFaq.map(item => ({ '@type': 'Question', name: item.question, acceptedAnswer: { '@type': 'Answer', text: item.answer } })) };
   return <main>
     <Breadcrumbs items={[{ label: 'Plombier', href: '/professionnels' }, { label: 'Lyon' }]} />
