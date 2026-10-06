@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ city: str
   if (metro) { const url = `https://nalvium.com/plombier/${metro.slug}`; return { title: `Plombier à ${metro.name} ? Comprendre le problème d’abord | NALVIUM`, description: `${metro.name} : observez une fuite, un WC bouché ou une canalisation avant de décider si un plombier doit intervenir.`, alternates: { canonical: url }, openGraph: { title: `Plombier à ${metro.name} ? Comprendre le problème d’abord | NALVIUM`, description: metro.localContext, url, type: 'website' } }; }
   if (!c) {
     const location = `${franceCity.name}, ${franceCity.departmentName}, ${franceCity.regionName}`;
-    const title = `Plombier à ${franceCity.name} ? Diagnostiquez le problème d’abord | NALVIUM`;
+    const title = `Plombier à ${franceCity.name} ? Diagnostiquez le problème d’abord`;
     const description = `Un problème de plomberie à ${location} ? NALVIUM aide à comprendre ce qui se passe, à effectuer des vérifications sûres et à décider de la suite.`;
     return { title, description, alternates: { canonical: `https://nalvium.com/plombier/${franceCity.urlSlug}` }, openGraph: { title, description, url: `https://nalvium.com/plombier/${franceCity.urlSlug}`, type: 'website' } };
   }
@@ -111,7 +111,7 @@ const nationalHubFamilies = [
 function NationalHub({ city }: { city: (typeof franceCities)[number] }) {
   const location = `${city.name}, en ${city.departmentName}, dans la région ${city.regionName}`;
   const canonical = `https://nalvium.com/plombier/${city.urlSlug}`;
-  const title = `Plombier à ${city.name} ? Diagnostiquez le problème d’abord | NALVIUM`;
+  const title = `Plombier à ${city.name} ? Diagnostiquez le problème d’abord`;
   const description = `Un problème de plomberie à ${location} ? NALVIUM aide à comprendre ce qui se passe avant de décider si un professionnel est nécessaire.`;
   const faq = [
     { question: `NALVIUM est-il un plombier à ${city.name} ?`, answer: 'Non. NALVIUM est un service numérique gratuit qui aide à observer un problème, envisager des causes possibles et effectuer uniquement des vérifications sûres avant de décider de la suite.' },

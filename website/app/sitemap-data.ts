@@ -30,3 +30,8 @@ export function sitemapResponse(body: string): Response {
 export function urlSet(paths: string[]): string {
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(path => `<url><loc>${escapeXml(`${BASE_URL}${path}`)}</loc><lastmod>${LAST_MODIFIED}</lastmod><changefreq>monthly</changefreq><priority>${path === '' ? '1.0' : '0.7'}</priority></url>`).join('')}</urlset>`;
 }
+
+export function segmentResponse(name: string): Response {
+  const segment = sitemapSegments().find(item => item.name === name);
+  return segment ? sitemapResponse(urlSet(segment.paths)) : new Response('Not Found', { status: 404 });
+}
