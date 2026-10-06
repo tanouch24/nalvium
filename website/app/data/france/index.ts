@@ -19,6 +19,7 @@ export function getFranceProblem(slug: string): FranceProblemRecord | undefined 
 export function isPublishedCity(urlSlug: string): boolean { const city = getFranceCity(urlSlug); return Boolean(city && city.seoStatus !== 'disabled'); }
 export function isPublishedProblem(citySlug: string, problemSlug: string): boolean { const city = getFranceCity(citySlug); return Boolean(city && city.seoStatus === 'full' && city.activeProblems.includes(problemSlug)); }
 export function publishedCitySlugs(): string[] { return franceCities.filter(city => city.seoStatus !== 'disabled').map(city => city.urlSlug); }
+export function preRenderedCitySlugs(): string[] { return franceCities.filter(city => city.seoStatus === 'full').map(city => city.urlSlug); }
 export function publishedLocalProblemParams(): { city: string; problem: string }[] { return franceCities.filter(city => city.seoStatus === 'full').flatMap(city => city.activeProblems.map(problem => ({ city: city.urlSlug, problem }))); }
 export function publishedLocalHubPaths(): string[] { return publishedCitySlugs().map(city => `/plombier/${city}`); }
 export function publishedLocalProblemPaths(): string[] { return publishedLocalProblemParams().map(({ city, problem }) => `/plombier/${city}/${problem}`); }

@@ -122,7 +122,7 @@ const baseCities = communeRowsOnly.map(row => {
     regionCode: row.REG,
     regionName: region.NCCENR || region.LIBELLE,
     typecom: row.TYPECOM,
-    seoStatus: 'disabled',
+    seoStatus: 'hub',
     activeProblems: [],
     neighborInseeCodes: [],
     relatedCityInseeCodes: [],

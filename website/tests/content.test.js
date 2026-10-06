@@ -3,7 +3,7 @@ const layout=fs.readFileSync('app/layout.tsx','utf8');
 const home=fs.readFileSync('app/page.tsx','utf8');
 assert(layout.includes('NALVIUM')); assert(layout.includes('metadataBase')); assert(home.includes('NALVIUM'));
 assert(!fs.existsSync('public/index.html'));
-assert(fs.existsSync('app/sitemap.ts')===true);
+assert(fs.existsSync('app/sitemap.xml/route.ts')===true);
 for (const file of ['app/mentions-legales/page.tsx','app/confidentialite/page.tsx','app/cookies/page.tsx','app/cgu/page.tsx','app/suppression-compte/page.tsx']) {
   const legal = fs.readFileSync(file, 'utf8');
   assert(!/TODO|TBD|placeholder|example\.com|Lorem|à confirmer|a confirmer/i.test(legal), `${file} contains an unresolved public legal placeholder`);

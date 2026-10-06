@@ -5,7 +5,7 @@
 Le moteur sépare le référentiel communal, le registre des problèmes et le rendu Next.js.
 Une commune est identifiée par son code officiel géographique Insee (`inseeCode`), jamais par son nom ou son slug seul.
 
-Le catalogue complet est dans `data/france/catalog.json`. Il contient le référentiel national des communes `COM` du COG 2026, mais seules les sept communes déjà publiées — Lyon, Nice, Villeurbanne, Bron, Vénissieux, Saint-Priest et Caluire-et-Cuire — ont un statut actif. Toutes les autres communes importées restent `seoStatus: "disabled"`. Les codes, départements et régions viennent des fichiers COG officiels ; aucune population n’est importée et les communes nationales nouvelles n’ont pas de voisinage inventé.
+Le catalogue complet est dans `data/france/catalog.json`. Il contient les 34 875 communes `COM` du COG 2026. Les sept communes historiques — Lyon, Nice, Villeurbanne, Bron, Vénissieux, Saint-Priest et Caluire-et-Cuire — restent `seoStatus: "full"`; les 34 868 autres communes sont `seoStatus: "hub"` sans problème local activé. Les codes, départements et régions viennent des fichiers COG officiels ; aucune population n’est importée et aucun voisinage n’est inventé.
 
 Le registre des problèmes est dans le même catalogue. Les trois intentions Métropole V1 sont obligatoires : `fuite-eau`, `wc-bouche` et `canalisation-bouchee`. Les autres problèmes déjà publiés à Lyon sont conservés pour ne pas changer leurs URLs.
 
@@ -14,10 +14,10 @@ Le registre des problèmes est dans le même catalogue. Les trois intentions Mé
 Chaque commune possède un `seoStatus` :
 
 - `disabled` : aucune route indexable ni entrée sitemap ;
-- `hub` : hub uniquement ;
+- `hub` : hub national uniquement, rendu à la demande ;
 - `full` : hub et problèmes listés dans `activeProblems`.
 
-Le moteur génère uniquement les paramètres et chemins des communes activées. Ajouter une commune au référentiel ne la publie donc pas automatiquement : il faut explicitement choisir son statut et ses problèmes.
+L’import national active explicitement tous les `COM` en `hub` et préserve les sept `full`. Les problèmes restent toujours opt-in : une commune `hub` ne génère aucune page problème.
 
 ## Homonymes
 
@@ -46,9 +46,9 @@ Les tests `tests/local-seo-engine.test.js` vérifient l’inventaire publié, le
 
 ## Sitemap et performance
 
-`app/data/france/sitemap-utils.ts` centralise les chemins locaux publiés et propose un découpage par lots de 45 000 URLs. Le sitemap actuel reste `/sitemap.xml` pour compatibilité. Si le catalogue national grossit, un index pourra répartir les lots `guides`, `local hubs` et `local problems` sans modifier les URLs.
+`app/sitemap.xml/route.ts` expose un index XML compatible avec `/sitemap.xml`. Il référence `general.xml`, les lots `local-hubs-*.xml` et `local-problems-*.xml`, servis par `app/sitemaps/[segment]/route.ts`. Chaque lot reste sous la limite prudente de 45 000 URLs. Les 34 875 hubs sont dans un lot et les 28 problèmes historiques dans un autre.
 
-Le moteur ne pré-rend que les communes `hub` et `full` et leurs problèmes activés. Le catalogue national peut contenir des dizaines de milliers de lignes sans être chargé dans chaque route : `data/france/catalog.json` est le référentiel complet, tandis que `app/data/france/published-catalog.json` est l’index runtime compact des seules communes publiées. Les fonctions `generateStaticParams` et le sitemap filtrent explicitement les statuts publiés. Le rapport d’import est écrit dans `data/insee/cog-2026/import-report.json`.
+Le moteur pré-rend seulement les sept communes `full` et leurs 28 problèmes historiques. Les autres hubs utilisent le rendu dynamique/ISR à la demande (`revalidate: 3600`) : ils ne sont pas envoyés dans `generateStaticParams`. Le runtime utilise des maps `urlSlug → commune` ; le catalogue compact publié fait environ 21 MB côté serveur et n’est jamais envoyé au navigateur comme payload de catalogue. Le rapport d’import est écrit dans `data/insee/cog-2026/import-report.json`.
 
 ## Source communes France
 
@@ -74,11 +74,11 @@ Les codes `2A` et `2B` sont acceptés pour la Corse. Le fichier principal des co
 
 1. Importer une commune depuis un référentiel Insee validé et conserver son `inseeCode`.
 2. Vérifier les collisions de nom et définir un `urlSlug` stable.
-3. Ajouter la commune au catalogue avec `seoStatus: "hub"` ou `"full"`.
+3. Ajouter la commune au catalogue avec `seoStatus: "hub"` ou `"full"` ; l’import national utilise `hub` par défaut et seules les villes éditorialement couvertes passent en `full`.
 4. Activer uniquement les problèmes réellement couverts.
 5. Ajouter les overrides éditoriaux et les sources locales vérifiables.
 6. Lancer `npm test`, le quality gate et les tests de routes.
 7. Vérifier canonicales, maillage, sécurité, sitemap et rendu mobile.
 8. Publier uniquement après revue humaine du contenu.
 
-Ne jamais générer des milliers de pages par simple présence dans un fichier communal.
+La présence dans le COG peut rendre un hub national disponible uniquement lorsqu’une politique de publication l’autorise. Les pages problème restent explicitement activées et le quality gate doit être exécuté avant toute extension éditoriale.
